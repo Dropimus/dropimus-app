@@ -1,0 +1,6 @@
+{
+  "name": "Dropimus",
+  "description": "Proof-of-Foresight truth formation protocol built on high-precision physical-measurement constraints and economic stakes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

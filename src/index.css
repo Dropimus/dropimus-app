@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  min-height: 100%;
+  background: #050505;
+  color: #F5F5F5;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #121212;
+  border-radius: 2px;
+}
+
+/* Font helpers */
+.syne  { font-family: 'Space Grotesk', sans-serif; }
+.mono  { font-family: 'JetBrains Mono', monospace; }
+.inter { font-family: 'Inter', sans-serif; }
+
+/* Calendar Picker Dark Theme */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.3);
+}
+
+/* ── Spec animations ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Sentiment Orb ambient CSS glow targets */
+@keyframes orbProven {
+  0%, 100% { box-shadow: 0 0 28px rgba(16, 185, 129, 0.25), 0 0 56px rgba(16, 185, 129, 0.1); }
+  50% { box-shadow: 0 0 44px rgba(16, 185, 129, 0.45), 0 0 88px rgba(16, 185, 129, 0.25); }
+}
+
+@keyframes orbFaded {
+  0%, 100% { box-shadow: 0 0 28px rgba(217, 48, 80, 0.25), 0 0 56px rgba(217, 48, 80, 0.1); }
+  50% { box-shadow: 0 0 44px rgba(217, 48, 80, 0.45), 0 0 88px rgba(217, 48, 80, 0.25); }
+}
+
+@keyframes orbSplit {
+  0%, 100% { box-shadow: 0 0 28px rgba(16, 185, 129, 0.2), 0 0 56px rgba(217, 48, 80, 0.1); }
+  50% { box-shadow: 0 0 44px rgba(16, 185, 129, 0.3), 0 0 88px rgba(217, 48, 80, 0.2); }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2.4s infinite;
+}
+
+.animate-fadeUp {
+  animation: fadeUp 0.22s ease forwards;
+}
+
+.animate-orbProven {
+  animation: orbProven 3s ease-in-out infinite;
+}
+
+.animate-orbFaded {
+  animation: orbFaded 3s ease-in-out infinite;
+}
+
+.animate-orbSplit {
+  animation: orbSplit 3s ease-in-out infinite;
+}
+
+button {
+  font-family: 'Inter', sans-serif;
+}
+
+button:active {
+  opacity: 0.82;
+  transform: scale(0.975);
+  transition: all 0.08s;
+}
