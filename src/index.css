@@ -36,10 +36,15 @@
 
 
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Keep the base reset inside @layer base so Tailwind's utility layer (p-*, m-*,
+   gap-*, etc.) still wins. An unlayered universal reset overrides every layered
+   utility regardless of specificity, which silently zeroes out all spacing. */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html, body, #root {

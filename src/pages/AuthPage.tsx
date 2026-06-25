@@ -30,6 +30,7 @@ import { DropimusAPI } from '../lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { TermsPage } from './TermsPage';
 import { prefetchActiveClaims } from '../lib/claimsCache';
+import dlogo from '../assets/images/dlogo.png';
 
 interface AuthPageProps {
   onLoginSuccess: () => void;
@@ -353,7 +354,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
         {/* Top Header section */}
         <div className="relative z-10 flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-            <img src="/src/assets/images/dlogo.png" alt="Mini Logo" className="w-7 h-7 object-contain rounded-full" />
+            <img src={dlogo} alt="Mini Logo" className="w-7 h-7 object-contain rounded-full" referrerPolicy="no-referrer" />
           </div>
           <div>
             <span className="text-sm font-black tracking-[0.2em] text-white block uppercase" style={{ fontFamily: FONTS.display }}>
@@ -470,51 +471,50 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
             key="login-hub"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             id="auth-panel-wrapper"
-            className="relative w-full p-8 sm:p-12 md:p-14 rounded-[36px] text-center border transition-all duration-300"
+            className="relative w-full p-8 sm:p-10 md:p-12 rounded-3xl text-center border overflow-hidden"
             style={{
-              background: C.card,
-              borderColor: C.border,
-              boxShadow: '0 50px 100px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.02)',
-              backdropFilter: 'blur(30px)',
+              background: 'linear-gradient(180deg, rgba(22,22,26,0.72) 0%, rgba(12,12,15,0.82) 100%)',
+              borderColor: 'rgba(255,255,255,0.08)',
+              boxShadow: '0 40px 80px -24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(24px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(160%)',
             }}
           >
+            {/* Top hairline specular highlight */}
+            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
             {/* Protocol Identity Header */}
-            <div id="auth-logo-section" className="mb-10">
+            <div id="auth-logo-section" className="mb-9">
               <div
                 id="brand-logo-image-container"
-                className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-2xl border border-white/[0.05] shadow-2xl overflow-hidden bg-black/40 hover:scale-[1.03] duration-300 transition-transform cursor-pointer"
+                className="flex items-center justify-center w-[72px] h-[72px] mx-auto mb-6 rounded-[20px] border border-white/[0.07] overflow-hidden bg-black/50 hover:scale-[1.04] duration-300 transition-transform"
                 style={{
-                  boxShadow: `0 0 45px ${C.blueGlow}`,
+                  boxShadow: '0 0 0 1px rgba(255,255,255,0.02), 0 12px 32px -8px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.08)',
                 }}
               >
                 <img
-                  src="/src/assets/images/dlogo.png"
+                  src={dlogo}
                   alt="Dropimus Logo"
-                  className="w-14 h-14 object-contain rounded-full"
+                  className="w-12 h-12 object-contain rounded-full"
+                  referrerPolicy="no-referrer"
                 />
               </div>
 
               <h1
                 id="auth-title"
-                className="text-2xl font-black tracking-[0.16em] text-white leading-tight mb-2 uppercase"
+                className="text-[26px] font-black tracking-tight text-white leading-none mb-2.5"
                 style={{ fontFamily: FONTS.display }}
               >
-                DROPIMUS COURT
+                Welcome to Dropimus
               </h1>
-              <p
-                id="auth-subtitle"
-                className="text-[9px] font-extrabold uppercase tracking-[0.35em] text-zinc-500 mb-6 font-mono"
-              >
-                Consensus Gate Terminal
-              </p>
 
               <p
                 id="auth-intro-desc"
-                className="text-zinc-400 text-xs md:text-sm leading-relaxed max-w-sm mx-auto"
+                className="text-zinc-400 text-sm leading-relaxed max-w-[19rem] mx-auto"
               >
-                Build on-chain reputational value. Authenticate via a verified Web3 wallet or Google proxy session key to access the sovereign consensus court.
+                Sign in to the consensus court with your Web3 wallet or Google account.
               </p>
             </div>
 
@@ -524,13 +524,10 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
               {/* Action Link Button: Connect Web3 Wallet */}
               <button
                 onClick={handleOpenAppKit}
-                className="w-full h-14 flex items-center justify-center gap-3 px-6 rounded-xl font-extrabold text-xs tracking-wider uppercase bg-white text-black hover:bg-neutral-200 hover:scale-[1.012] active:scale-[0.988] transition-all duration-200 cursor-pointer text-center disabled:opacity-50 shadow-lg"
+                className="w-full h-[52px] flex items-center justify-center gap-2.5 px-6 rounded-2xl font-bold text-sm bg-white text-black hover:bg-white hover:scale-[1.015] active:scale-[0.985] transition-all duration-200 cursor-pointer text-center disabled:opacity-50 disabled:pointer-events-none shadow-[0_8px_24px_-6px_rgba(255,255,255,0.25)]"
                 disabled={isGoogleLoading}
-                style={{
-                  opacity: 1.0,
-                }}
               >
-                <Key size={14} /> Connect Secure Wallet
+                <Key size={15} strokeWidth={2.4} /> Connect Wallet
               </button>
 
               {/* Wallet Connection Error handler */}
@@ -636,28 +633,31 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
               )}
 
               {/* Alternative real Google sign-in */}
-              <div className="relative flex py-3 items-center">
-                <div className="flex-grow border-t border-white/[0.06]"></div>
-                <span className="flex-shrink mx-4 text-[9px] uppercase font-bold tracking-[0.3em] text-zinc-600 font-mono">OR SECURE RECOVERY</span>
-                <div className="flex-grow border-t border-white/[0.06]"></div>
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-white/[0.07]"></div>
+                <span className="flex-shrink mx-4 text-[10px] uppercase font-semibold tracking-[0.25em] text-zinc-600">or</span>
+                <div className="flex-grow border-t border-white/[0.07]"></div>
               </div>
 
               <button
                 onClick={handleGoogleLogin}
-                className="w-full h-14 flex items-center justify-center gap-3 px-6 rounded-xl font-extrabold text-xs tracking-wider uppercase border border-white/[0.08] text-white hover:bg-white/[0.03] hover:border-white/15 hover:scale-[1.012] active:scale-[0.988] transition-all duration-200 cursor-pointer text-center disabled:opacity-50"
+                className="w-full h-[52px] flex items-center justify-center gap-2.5 px-6 rounded-2xl font-semibold text-sm border border-white/[0.1] text-white hover:bg-white/[0.04] hover:border-white/20 hover:scale-[1.015] active:scale-[0.985] transition-all duration-200 cursor-pointer text-center disabled:opacity-50 disabled:pointer-events-none"
                 disabled={isGoogleLoading}
                 style={{
-                  background: 'rgba(255,255,255,0.01)',
+                  background: 'rgba(255,255,255,0.015)',
                 }}
               >
                 {isGoogleLoading ? (
-                  <RefreshCw size={14} className="text-zinc-500 animate-spin" />
+                  <RefreshCw size={15} className="text-zinc-400 animate-spin" />
                 ) : (
-                  <svg className="w-3.5 h-3.5 text-zinc-300" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12.24 10.285V13.4h6.86c-.277 1.56-1.602 4.585-6.86 4.585-4.54 0-8.24-3.76-8.24-8.385s3.7-8.385 8.24-8.385c2.58 0 4.307 1.095 5.297 2.045l2.465-2.37C18.435 1.155 15.62 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.795-.085-1.4-.195-1.925H12.24z" />
+                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
                   </svg>
                 )}
-                {isGoogleLoading ? "Synchronizing OAuth Identity..." : "Continue with Google Network"}
+                {isGoogleLoading ? "Connecting to Google…" : "Continue with Google"}
               </button>
 
               {/* Google Errors */}

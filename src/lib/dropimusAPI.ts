@@ -623,7 +623,8 @@ export async function signUSDCApprovalAndDeposit(
     const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
     let treasuryAddr = '0x32353da725814b01a90db31e08e025f4a1b2c3d4';
     let mockUsdcAddr = '0x12353da725814b01a90db31e08e025f4a1b2c3d4';
-    let reqUnits = BigInt(usdcAmount) * 1000000n;
+    // Convert to 6-decimal USDC micro-units safely (BigInt() throws on fractional numbers).
+    let reqUnits = BigInt(Math.round(usdcAmount * 1_000_000));
     let skipApproval = false;
 
     onProgress('Verifying on-chain preflight requirements...', 'approve');
