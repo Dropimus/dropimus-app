@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Target, ShieldAlert, Sparkles, AlertCircle, Info } from 'lucide-react';
 import { C, FONTS } from '../../tokens';
+import { TermTooltip } from './TermTooltip';
 
 interface StakeCalculatorProps {
   claimTitle?: string;
@@ -73,7 +74,7 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-              Target Capital Stake
+              <TermTooltip term="capital">Target Capital Stake</TermTooltip>
             </span>
             <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: C.goldBright }}>
               ${simCapital} USDC
@@ -122,22 +123,22 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
         </div>
 
         {/* Input 2: Protocol-determined Reputation (Honor info block) */}
-        <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: `1px solid ${C.border}`, borderRadius: '14px', padding: '12px 14px' }}>
+        <div style={{ background: C.deep, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '12px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-              Protocol-Calculated Reputation Stake
+            <span style={{ fontSize: '11px', fontWeight: 700, color: C.text }}>
+              Protocol-Calculated <TermTooltip term="honor">Reputation Stake</TermTooltip>
             </span>
           </div>
-          <p style={{ fontSize: '10.5px', color: 'rgba(255, 255, 255, 0.45)', lineHeight: '1.4', margin: 0 }}>
-            Callers no longer choose their own Honor stake. To prevent strategic optimization and minimize game playing, the protocol automatically computes reputation delta at settlement: <code style={{ fontFamily: FONTS.mono, background: 'rgba(255,255,255,0.04)', padding: '1px 4px', borderRadius: '4px', color: C.blueLight }}>honor_delta = base_reward * (capital / avg_capital)</code>. Your reputation yields and decays scale directly with your actual monetary risk.
+          <p style={{ fontSize: '10.5px', color: C.sub, lineHeight: '1.4', margin: 0 }}>
+            Callers no longer choose their own Honor stake. To prevent strategic optimization and minimize game playing, the protocol automatically computes reputation delta at settlement: <code style={{ fontFamily: FONTS.mono, background: C.deep, padding: '1px 4px', borderRadius: '4px', color: C.blueLight }}>honor_delta = base_reward * (capital / avg_capital)</code>. Your reputation yields and decays scale directly with your actual monetary risk.
           </p>
         </div>
 
         {/* Input 3: Expected Final Consensus Confidence */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              Consensus Level Odds
+            <span style={{ fontSize: '11px', fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <TermTooltip term="consensus">Consensus Level Odds</TermTooltip>
               <span style={{ fontSize: '8px', color: C.sub }}>(Oracle outcome odds)</span>
             </span>
             <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: C.text }}>
@@ -154,9 +155,9 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
               onChange={(e) => setSimConsensus(Number(e.target.value))}
               style={{
                 flex: 1,
-                accentColor: '#FFFFFF',
+                accentColor: C.text,
                 height: '4px',
-                background: 'rgba(255, 255, 255, 0.08)',
+                background: C.deep,
                 borderRadius: '2px',
                 outline: 'none',
               }}
@@ -171,7 +172,7 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
       </div>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)' }} />
+      <div style={{ height: '1px', background: C.hairline }} />
 
       {/* Grid of Results: Yield vs Loss Slashes */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -229,7 +230,7 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <ShieldAlert size={12} color={C.fadedBright} />
             <span style={{ fontSize: '9px', fontWeight: 800, color: C.fadedBright, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              VERDICT RESOLVED FALSE
+              <TermTooltip term="faded">VERDICT RESOLVED FALSE</TermTooltip>
             </span>
           </div>
 
@@ -248,7 +249,7 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
           </div>
 
           <div style={{ fontSize: '9px', color: 'rgba(217, 48, 80, 0.6)', lineHeight: '1.3' }}>
-            * Collateral disbursed to winning stakers. Reputation decays by up to 25% of standard weight.
+            * Collateral disbursed to winning stakers. <TermTooltip term="honor">Reputation decays</TermTooltip> by up to 25% of standard weight.
           </div>
         </div>
 

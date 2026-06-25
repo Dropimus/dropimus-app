@@ -41,9 +41,9 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
   return (
     <div
       onClick={() => onSelect(claim)}
+      className="main-container glassmorphic"
       style={{
-        background: C.card,
-        border: `1px solid ${borderColor}`,
+        border: `1px solid ${borderColor === C.border ? 'rgba(255, 255, 255, 0.08)' : borderColor}`,
         borderRadius: '24px',
         padding: '18px',
         cursor: 'pointer',
@@ -52,11 +52,13 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         position: 'relative',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.20)';
+        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.22)';
+        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
         e.currentTarget.style.transform = 'translateY(-2px)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = borderColor;
+        e.currentTarget.style.borderColor = borderColor === C.border ? 'rgba(255, 255, 255, 0.08)' : borderColor;
+        e.currentTarget.style.background = 'rgba(20, 20, 22, 0.45)';
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >

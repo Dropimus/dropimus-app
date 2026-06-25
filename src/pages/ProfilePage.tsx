@@ -222,7 +222,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
             <div>
               <h2 style={{ fontFamily: FONTS.display, fontSize: '22px', fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: '4px' }}>
-                {googleUser.loggedIn ? googleUser.name : "Anonymity Node #502"}
+                {googleUser.loggedIn ? googleUser.name : "Anonymity Wallet #502"}
               </h2>
               <span className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block">
                 {wallet.address}

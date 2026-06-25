@@ -235,3 +235,14 @@ export function LogoWordmark({ height = 28 }) {
     </div>
   );
 }
+
+export function IconParachute({ size = 16, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 10a9 9 0 0 0-18 0c0 .5.2 1 .5 1.5.8 1 2.3 1 3 0 .7 1 2.3 1 3 0 .7 1 2.3 1 3 0 .7-1 2.2-1 3 0 .7-1 .5-1.5-.5-1.5z" />
+      <path d="M3 10.5c1 2.2 4.5 7.5 9 11.5M21 10.5c-1 2.2-4.5 7.5-9 11.5" />
+      <path d="M7.5 11c.5 2.5 2.5 6.5 4.5 11M16.5 11c-.5 2.5-2.5 6.5-4.5 11" />
+      <rect x="10.5" y="21" width="3" height="3" rx="0.5" fill={color} opacity="0.3" stroke={color} strokeWidth="1" />
+    </svg>
+  );
+}

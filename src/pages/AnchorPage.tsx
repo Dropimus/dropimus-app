@@ -4,8 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Lock, Coins, Gift, Landmark, Trophy, TrendingUp, Folder, Calendar, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Lock, Coins, Landmark, Trophy, TrendingUp, Folder, Calendar, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
 import { C, FONTS } from '../tokens';
+import { TermTooltip } from '../components/shared/TermTooltip';
 import {
   IconProven,
   IconAnchor,
@@ -13,7 +15,8 @@ import {
   IconCompare,
   IconVerify,
   IconHash,
-  IconFaded
+  IconFaded,
+  IconParachute
 } from '../components/icons';
 import { CLAIM_TYPES, METRICS, RELATIVE_WINDOWS, PROOF_TYPES } from '../data';
 import Btn from '../components/shared/Btn';
@@ -47,7 +50,7 @@ function sanitizeEtherAddress(addr: string | null | undefined, fallback: string)
 }
 
 const CATEGORIES = [
-  { id: 'Airdrops', label: 'Airdrops', icon: Gift },
+  { id: 'Airdrops', label: 'Airdrops', icon: IconParachute },
   { id: 'Crypto', label: 'Crypto', icon: Coins },
   { id: 'Politics', label: 'Politics', icon: Landmark },
   { id: 'Sports', label: 'Sports', icon: Trophy },
@@ -88,15 +91,15 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
               width: '52px',
               height: '52px',
               borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.03)',
+              background: C.deep,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              border: `1px solid ${C.border2}`,
+              border: `1px solid ${C.border}`,
             }}
           >
-            <Lock size={18} className="text-white" />
+            <Lock size={18} style={{ color: C.blueLight }} />
           </div>
           <h2 style={{ fontFamily: FONTS.display, fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>
             Wallet Connection Required
@@ -104,7 +107,9 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
           <p style={{ color: C.sub, fontSize: '12px', marginBottom: '24px', lineHeight: '1.5' }}>
             To anchor a prediction parameter on the Base consensus court, you must have an active Web3 wallet connected. The Google pathway is for read-only tracking and requires a linked wallet for consensus voting.
           </p>
-          <button
+          <Btn
+            variant="primary"
+            fullWidth
             onClick={async () => {
               const kit = await getAppKit();
               if (kit) {
@@ -117,10 +122,9 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                 DropimusProtocolAPI.connectWallet();
               }
             }}
-            className="w-full py-3 rounded-xl font-bold text-xs bg-white text-black hover:bg-neutral-200 transition-all duration-150 cursor-pointer text-center"
           >
             Connect Wallet
-          </button>
+          </Btn>
         </div>
       </div>
     );
@@ -148,6 +152,15 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
   const [capitalStake, setCapitalStake] = useState<number>(5);
   const [capitalStakeInput, setCapitalStakeInput] = useState<string>('5');
   const [honorStake, setHonorStake] = useState<number>(100);
+
+  // Evidence & Supporting Proof states
+  const [evidenceTier, setEvidenceTier] = useState<'none' | 'soft' | 'hard'>('none');
+  const [proofsList, setProofsList] = useState<any[]>([]);
+  const [showAddProofForm, setShowAddProofForm] = useState<boolean>(false);
+  const [proofType, setProofType] = useState<string>('on-chain');
+  const [proofTitle, setProofTitle] = useState<string>('');
+  const [proofContent, setProofContent] = useState<string>('');
+  const [proofMediaUrl, setProofMediaUrl] = useState<string>('');
 
   // Local Tx verification state caching to bypass indexing latencies or backend fallbacks
   const [localApproved, setLocalApproved] = useState<boolean>(() => {
@@ -385,7 +398,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
     }
 
     setSigningStage('approve');
-    setSigningMessage('Double checking asset lock status on Base consensus nodes...');
+    setSigningMessage('Double checking asset lock status on Base consensus contract...');
 
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
@@ -443,8 +456,14 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         description: `Physical constraint ledger claim verified. Primary measurable asset subject: ${subject}. Locked metric: ${currentMetric.label} (${currentMetric.unit}) with direction threshold set to ${direction.toUpperCase()} ${threshold}. Verification relies exclusively on ${currentMetric.source}.`,
         category: selectedCategory.toLowerCase(),
         resolution_date: payloadDate,
-        capital_stake: capitalStake.toFixed(2),
-        proof_type: 'none'
+        capital_stake: Number(capitalStake),
+        proof_type: evidenceTier,
+        proofs: evidenceTier === 'none' ? [] : proofsList.map(p => ({
+          proof_type: p.proof_type,
+          title: p.title,
+          content: p.content,
+          media_urls: p.media_urls || []
+        }))
       };
 
       const backendRes = await DropimusAPI.anchorClaim(payload, accessToken);
@@ -453,7 +472,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
       const statusRes = backendRes?.success ? (claimData.status || 'pending_onchain') : 'pending_onchain';
 
       const mockHash = `0x${Array.from({length:32}, () => Math.floor(Math.random()*16).toString(16)).join('')}`;
-      const realTxHash = claimData.content_hash || claimData.anchor_tx_hash || mockHash;
+      const realTxHash = claimData.content_hash || claimData.anchor_tx_hash || result.txHash || mockHash;
 
       setSuccessClaimHash(realTxHash);
 
@@ -479,9 +498,13 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             side: "proven",
             honorStaked: honorStake,
             capitalStaked: capitalStake,
-            proofs: [
+            proofs: evidenceTier === 'none' ? [
               { type: "on-chain", content: `Physical condition anchoring statement: "${buildClaimStatement()}". Signed via standard cryptographic hashes at block.`, url: "https://dropimus.protocol/verify" }
-            ],
+            ] : proofsList.map(p => ({
+              type: p.proof_type,
+              content: p.content,
+              url: p.media_urls?.[0] || "https://dropimus.protocol/verify"
+            })),
             weight: honorStake * 6.0,
           }
         ],
@@ -499,7 +522,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
     } catch (err: any) {
       console.error("Live anchoring failed:", err);
       setSigningStage('error');
-      setSigningMessage(`ANCHOR ERROR: ${err?.message || 'Failed to communicate with Base network nodes.'}`);
+      setSigningMessage(`ANCHOR ERROR: ${err?.message || 'Failed to communicate with Base network.'}`);
     }
   };
 
@@ -511,6 +534,12 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
     setThreshold('5000');
     setCapitalStake(5);
     setHonorStake(100);
+    setEvidenceTier('none');
+    setProofsList([]);
+    setShowAddProofForm(false);
+    setProofTitle('');
+    setProofContent('');
+    setProofMediaUrl('');
     setSigningStage('idle');
     setSigningMessage('');
   };
@@ -536,8 +565,10 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
   // ── SUB-PAGE 1: SUCCESS VIEW ────────────────────────────────────
   if (submitted) {
     return (
-      <div
-        className="animate-fadeUp"
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 120 }}
         style={{
           maxWidth: '420px',
           margin: '0 auto',
@@ -548,7 +579,10 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
           alignItems: 'center',
         }}
       >
-        <div
+        <motion.div
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', delay: 0.15, damping: 12, stiffness: 150 }}
           style={{
             width: '72px',
             height: '72px',
@@ -562,17 +596,30 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
           }}
         >
           <IconVerify size={32} color={C.blueLight} />
-        </div>
+        </motion.div>
 
-        <h2 style={{ fontFamily: FONTS.display, fontSize: '26px', fontWeight: 800, color: C.text, marginBottom: '8px' }}>
+        <motion.h2
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.4 }}
+          style={{ fontFamily: FONTS.display, fontSize: '26px', fontWeight: 800, color: C.text, marginBottom: '8px' }}
+        >
           Your claim is anchored.
-        </h2>
-        <p style={{ fontSize: '13px', color: C.sub, marginBottom: '28px' }}>
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.4 }}
+          style={{ fontSize: '13px', color: C.sub, marginBottom: '28px' }}
+        >
           Timestamped on Base. Immutable. Permanent.
-        </p>
+        </motion.p>
 
         {/* Ledger receipt metadata box */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', delay: 0.45, damping: 20, stiffness: 100 }}
           style={{
             background: C.card,
             border: `1px solid ${C.blueLight}33`,
@@ -585,6 +632,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             gap: '12px',
             marginBottom: '24px',
           }}
+          className="main-container animate-fadeDown"
         >
           <div>
             <div style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '2px' }}>
@@ -623,10 +671,15 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
               {buildClaimStatement()}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Action button rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}
+        >
           <Btn variant="secondary" onClick={() => {
             if (successClaimHash) {
               window.open(`https://sepolia.basescan.org/tx/${successClaimHash}`, '_blank');
@@ -650,8 +703,8 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
           <Btn variant="primary" style={{ marginTop: '10px' }} onClick={handleReset}>
             Anchor Another Claim
           </Btn>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -756,86 +809,165 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
 
       {/* ── STEP 1: DEFINE SUBJECT ── */}
       {step === 1 && (
-        <div className="animate-fadeUp">
-          <div style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
-            CLAIM TYPE SELECTOR
-          </div>
-
-          {/* 2x2 Grid layouts of Claim types */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '10px',
-              marginBottom: '20px',
-            }}
-          >
-            {CLAIM_TYPES.map((type) => {
-              const isSelected = claimType === type.id;
-              return (
-                <div
-                  key={type.id}
-                  onClick={() => setClaimType(type.id)}
-                  style={{
-                    background: C.card,
-                    border: `1px solid ${isSelected ? C.blueLight : C.border}`,
-                    borderRadius: '14px',
-                    padding: '16px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: '120px',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = C.border2;
-                      e.currentTarget.style.background = C.elevated;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = C.border;
-                      e.currentTarget.style.background = C.card;
-                    }
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                      {iconForType(type.id, isSelected ? C.blueBright : C.sub)}
-                      <span style={{ fontFamily: FONTS.display, fontSize: '13px', fontWeight: 700, color: C.text }}>
-                        {type.label}
+        <div className="animate-fadeUp flex flex-col gap-6">
+          
+          {/* Part A: FORMAT SELECTION */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">1</span>
+              <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
+                Select Foresight Format
+              </div>
+            </div>
+            
+            {/* 2x2 Grid layouts of Claim types */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px',
+                marginBottom: '10px',
+              }}
+            >
+              {CLAIM_TYPES.map((type) => {
+                const isSelected = claimType === type.id;
+                return (
+                  <div
+                    key={type.id}
+                    onClick={() => setClaimType(type.id)}
+                    style={{
+                      background: isSelected ? 'rgba(0, 82, 255, 0.05)' : C.card,
+                      border: `1px solid ${isSelected ? C.blueLight : C.border}`,
+                      borderRadius: '14px',
+                      padding: '16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: '120px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 0 15px rgba(0, 82, 255, 0.15)' : 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = C.border2;
+                        e.currentTarget.style.background = C.elevated;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = C.border;
+                        e.currentTarget.style.background = C.card;
+                      }
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        {iconForType(type.id, isSelected ? C.blueBright : C.sub)}
+                        <span style={{ fontFamily: FONTS.display, fontSize: '13px', fontWeight: 700, color: isSelected ? '#fff' : C.text }}>
+                          {type.label}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: C.sub, fontStyle: 'italic', display: 'block', lineHeight: 1.4 }}>
+                        "{type.example}"
                       </span>
                     </div>
-                    <span style={{ fontSize: '11px', color: C.sub, fontStyle: 'italic', display: 'block', lineHeight: 1.4 }}>
-                      "{type.example}"
+                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em', color: isSelected ? C.blueLight : C.faint, alignSelf: 'flex-end', marginTop: '6px' }}>
+                      {type.tag}
                     </span>
                   </div>
-                  <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em', color: isSelected ? C.blueLight : C.faint, alignSelf: 'flex-end', marginTop: '6px' }}>
-                    {type.tag}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            
+            <div className="text-[10px] text-zinc-500 font-mono mt-1.5 flex items-center gap-1.5 pl-1">
+              <span className="text-blue-400">⚡</span> Active Format: <span className="text-zinc-300 font-extrabold">{(CLAIM_TYPES.find(t => t.id === claimType)?.label || '').toUpperCase()}</span>
+            </div>
           </div>
 
-          {/* Claim Subject entries */}
-          <div style={{ marginBottom: '24px' }}>
-            {claimType === 'comparative' ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '6px' }}>
-                    ASSET / PROTOCOL A
-                  </label>
+          {/* Part B: FORESIGHT SUBJECT ENTRY */}
+          <div className="border-t border-white/[0.04] pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">2</span>
+              <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
+                Enter Foresight Subject
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              {claimType === 'comparative' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '6px' }}>
+                      PROTOCOL A (BASE TARGET)
+                    </label>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value.slice(0, 48))}
+                      placeholder="e.g. Solana"
+                      style={{
+                        background: C.deep,
+                        border: `1px solid ${subject ? C.blueLight + '44' : C.border}`,
+                        borderRadius: '10px',
+                        padding: '11px 14px',
+                        color: C.text,
+                        fontFamily: FONTS.body,
+                        fontSize: '14px',
+                        outline: 'none',
+                        width: '100%',
+                        transition: 'all 0.15s ease',
+                      }}
+                    />
+                  </div>
+                  <span style={{ color: C.sub, fontSize: '12px', marginTop: '16px', fontWeight: 600 }}>vs</span>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '6px' }}>
+                      PROTOCOL B (COMPARATIVE)
+                    </label>
+                    <input
+                      type="text"
+                      value={subjectB}
+                      onChange={(e) => setSubjectB(e.target.value.slice(0, 48))}
+                      placeholder="e.g. Ethereum"
+                      style={{
+                        background: C.deep,
+                        border: `1px solid ${subjectB ? C.blueLight + '44' : C.border}`,
+                        borderRadius: '10px',
+                        padding: '11px 14px',
+                        color: C.text,
+                        fontFamily: FONTS.body,
+                        fontSize: '14px',
+                        outline: 'none',
+                        width: '100%',
+                        transition: 'all 0.15s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em' }}>
+                      ASSET OR DATA SUBJECT
+                    </label>
+                    <span style={{ fontSize: '9px', color: C.sub, fontFamily: FONTS.mono }}>
+                      {subject.length}/48 LIMIT
+                    </span>
+                  </div>
+                  
                   <input
                     type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value.slice(0, 48))}
-                    placeholder="e.g. Solana"
+                    placeholder={
+                      claimType === 'event'
+                        ? "e.g. Polymarket token launch, Base Layer 3 mainnet"
+                        : "e.g. BTC Dominance, Eth TVL, Base layer volume"
+                    }
                     style={{
                       background: C.deep,
-                      border: `1px solid ${C.border}`,
+                      border: `1px solid ${subject ? C.blueLight + '44' : C.border}`,
                       borderRadius: '10px',
                       padding: '11px 14px',
                       color: C.text,
@@ -843,95 +975,53 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                       fontSize: '14px',
                       outline: 'none',
                       width: '100%',
+                      marginBottom: '10px',
+                      transition: 'all 0.15s ease',
                     }}
                   />
-                </div>
-                <span style={{ color: C.sub, fontSize: '12px', marginTop: '16px', fontWeight: 600 }}>vs</span>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '6px' }}>
-                    ASSET / PROTOCOL B
-                  </label>
-                  <input
-                    type="text"
-                    value={subjectB}
-                    onChange={(e) => setSubjectB(e.target.value.slice(0, 48))}
-                    placeholder="e.g. Ethereum"
-                    style={{
-                      background: C.deep,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: '10px',
-                      padding: '11px 14px',
-                      color: C.text,
-                      fontFamily: FONTS.body,
-                      fontSize: '14px',
-                      outline: 'none',
-                      width: '100%',
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <label style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em' }}>
-                    ASSET OR SUBJECT OF FORESIGHT
-                  </label>
-                  <span style={{ fontSize: '9px', color: C.sub, fontFamily: FONTS.mono }}>
-                    {subject.length}/48 LIMIT
-                  </span>
-                </div>
-                
-                {/* Asset entries inputs */}
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value.slice(0, 48))}
-                  placeholder="e.g. Coinbase Base layer, Nigeria inflation"
-                  style={{
-                    background: C.deep,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: '10px',
-                    padding: '11px 14px',
-                    color: C.text,
-                    fontFamily: FONTS.body,
-                    fontSize: '14px',
-                    outline: 'none',
-                    width: '100%',
-                    marginBottom: '10px',
-                  }}
-                />
 
-                {/* Quick selection chips row */}
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {quickPicks.map((pick) => (
-                    <button
-                      key={pick}
-                      type="button"
-                      onClick={() => setSubject(pick)}
-                      style={{
-                        background: C.elevated,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: '8px',
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        color: C.sub,
-                        cursor: 'pointer',
-                        transition: 'all 0.1s',
-                      }}
-                    >
-                      {pick}
-                    </button>
-                  ))}
+                  {/* Quick selection chips row */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {quickPicks.map((pick) => (
+                      <button
+                        key={pick}
+                        type="button"
+                        onClick={() => setSubject(pick)}
+                        style={{
+                          background: C.elevated,
+                          border: `1px solid ${subject === pick ? C.blueLight : C.border}`,
+                          borderRadius: '8px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          color: subject === pick ? '#fff' : C.sub,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {pick}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            
+            <p className="text-[10px] text-zinc-500 pl-1 mt-2 font-mono">
+              💡 {claimType === 'comparative' 
+                ? "Type the two assets you wish to put in head-to-head comparison." 
+                : "Type the asset or variable protocol address you want to anchor consensus results for."}
+            </p>
           </div>
 
-          {/* ── CHOOSE CLAIM CATEGORY ── */}
-          <div style={{ marginBottom: '24px', marginTop: '4px' }}>
-            <label style={{ display: 'block', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              CHOOSE CLAIM CATEGORY
-            </label>
+          {/* Part C: CATEGORY SELECTOR */}
+          <div className="border-t border-white/[0.04] pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">3</span>
+              <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
+                Choose Domain Category
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
               {CATEGORIES.map((cat) => {
                 const isSel = selectedCategory === cat.id;
@@ -965,14 +1055,43 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             </div>
           </div>
 
-          <Btn
-            variant="primary"
-            fullWidth
-            onClick={handleAdvanceStep1}
-            disabled={subject.trim().length < 3 || (claimType === 'comparative' && subjectB.trim().length < 3)}
-          >
-            Define Verification Metric →
-          </Btn>
+          {/* Active Status Guidance box */}
+          <div className="border-t border-white/[0.04] pt-5 flex flex-col gap-3">
+            {subject.trim().length >= 3 && (claimType !== 'comparative' || subjectB.trim().length >= 3) ? (
+              <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3 flex gap-2.5 items-start">
+                <span className="text-emerald-400 text-xs text-center leading-none mt-0.5">✓</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-emerald-300">Subject successfully validated</span>
+                  <span className="text-[10px] text-zinc-400 font-mono mt-0.5">Ready to lock parameters and define the metrics engine.</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl p-3 flex gap-2.5 items-start">
+                <span className="text-amber-400 text-xs text-center leading-none mt-0.5">⚠️</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-amber-300">Awaiting Foresight Subject</span>
+                  <span className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                    {claimType === 'comparative' 
+                      ? "Please enter both Asset A and Asset B (> 3 chars each) to enable step progress."
+                      : "Please type the target subject or select one of the Quick Picks to enable step progress."
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <Btn
+              variant="primary"
+              fullWidth
+              onClick={handleAdvanceStep1}
+              disabled={subject.trim().length < 3 || (claimType === 'comparative' && subjectB.trim().length < 3)}
+              style={{
+                boxShadow: (subject.trim().length >= 3 && (claimType !== 'comparative' || subjectB.trim().length >= 3)) ? '0 4px 15px rgba(0, 82, 255, 0.3)' : 'none',
+              }}
+            >
+              Define Verification Metric →
+            </Btn>
+          </div>
         </div>
       )}
 
@@ -1197,7 +1316,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                   <div style={{
                     width: '32px',
                     height: '32px',
-                    border: '3px solid rgba(255,255,255,0.1)',
+                    border: '3px solid var(--color-border)',
                     borderTop: `3px solid ${C.blueLight}`,
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
@@ -1261,7 +1380,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                     </div>
 
                     {/* Separator line */}
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+                    <div style={{ height: '1px', background: C.hairline }} />
 
                     {/* Step 2: Treasury Escrow Allowance limits */}
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
@@ -1648,6 +1767,326 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             </div>
           )}
 
+          {/* SUPPORTING EVIDENCE TIER */}
+          <div
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: '16px',
+              padding: '16px',
+              marginBottom: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+              <Zap size={14} style={{ color: C.blueLight }} />
+              <span style={{ fontSize: '10px', color: C.text, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                CONSENSUS EVIDENCE TIER SELECTION
+              </span>
+            </div>
+
+            <p style={{ fontSize: '11px', color: C.sub, marginBottom: '16px', lineHeight: '1.4' }}>
+              Declare your evidence tier. Combined with your proofs, this scales your protocol honor payout at settlement. Soft & Hard tiers require supporting evidence.
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              {[
+                { id: 'none', label: 'None', multiplier: '0.02x', desc: 'No proofs allowed', cap: 0 },
+                { id: 'soft', label: 'Soft', multiplier: '2.00x', desc: 'Max 2 proofs', cap: 2 },
+                { id: 'hard', label: 'Hard', multiplier: '6.00x', desc: 'Max 5 proofs', cap: 5 },
+              ].map((tier) => {
+                const isSelected = evidenceTier === tier.id;
+                return (
+                  <button
+                    key={tier.id}
+                    onClick={() => {
+                      setEvidenceTier(tier.id as any);
+                      // If changing tier and current proofs exceed cap, truncate them
+                      if (proofsList.length > tier.cap) {
+                        setProofsList(proofsList.slice(0, tier.cap));
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      background: isSelected ? 'rgba(0, 82, 255, 0.08)' : C.deep,
+                      border: `1.5px solid ${isSelected ? C.blueLight : C.border}`,
+                      color: isSelected ? '#ffffff' : C.sub,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', fontWeight: 800 }}>{tier.label}</span>
+                    <span style={{ fontSize: '11px', fontFamily: FONTS.mono, color: isSelected ? C.blueLight : C.gold, fontWeight: 700 }}>
+                      {tier.multiplier}
+                    </span>
+                    <span style={{ fontSize: '9px', opacity: 0.7 }}>{tier.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {evidenceTier !== 'none' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: C.text, fontWeight: 700 }}>
+                    Supporting Proofs ({proofsList.length} / {evidenceTier === 'soft' ? 2 : 5})
+                  </span>
+                  {!showAddProofForm && proofsList.length < (evidenceTier === 'soft' ? 2 : 5) && (
+                    <button
+                      onClick={() => {
+                        setShowAddProofForm(true);
+                        setProofTitle('');
+                        setProofContent('');
+                        setProofMediaUrl('');
+                      }}
+                      style={{
+                        fontSize: '11px',
+                        color: C.blueLight,
+                        fontWeight: 700,
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + Add Proof
+                    </button>
+                  )}
+                </div>
+
+                {proofsList.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {proofsList.map((p, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          background: C.deep,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: '8px',
+                          padding: '10px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span
+                              style={{
+                                fontSize: '8px',
+                                textTransform: 'uppercase',
+                                fontWeight: 800,
+                                background: '#111827',
+                                color: C.goldBright,
+                                border: `1px solid ${C.gold}33`,
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                fontFamily: FONTS.mono,
+                              }}
+                            >
+                              {p.proof_type}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff' }}>
+                              {p.title}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '11px', color: C.sub }}>{p.content}</span>
+                          {p.media_urls?.[0] && (
+                            <a
+                              href={p.media_urls[0]}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: '10px', color: C.blueLight, textDecoration: 'underline', marginTop: '2px' }}
+                            >
+                              Attached Document / Link
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setProofsList(proofsList.filter((_, idx) => idx !== index));
+                          }}
+                          style={{
+                            fontSize: '11px',
+                            color: '#EF4444',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {showAddProofForm && (
+                  <div
+                    style={{
+                      background: C.deep,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: '12px',
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div>
+                      <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                        Proof Type:
+                      </label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {['on-chain', 'article', 'document', 'social'].map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => setProofType(t)}
+                            style={{
+                              flex: 1,
+                              padding: '5px 2px',
+                              borderRadius: '6px',
+                              background: proofType === t ? 'rgba(0, 82, 255, 0.08)' : 'transparent',
+                              border: `1px solid ${proofType === t ? C.blueLight : C.border}`,
+                              color: proofType === t ? C.blueLight : C.sub,
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                        Proof Title:
+                      </label>
+                      <input
+                        type="text"
+                        value={proofTitle}
+                        onChange={(e) => setProofTitle(e.target.value)}
+                        placeholder="e.g., Block hash verification link"
+                        style={{
+                          width: '100%',
+                          background: C.elevated,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '6px 10px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                        Description:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={proofContent}
+                        onChange={(e) => setProofContent(e.target.value)}
+                        placeholder="Explain how this item proves or backs up the metrics of your statement..."
+                        style={{
+                          width: '100%',
+                          background: C.elevated,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '6px 10px',
+                          outline: 'none',
+                          resize: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                        Reference URL / Media URL (Optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={proofMediaUrl}
+                        onChange={(e) => setProofMediaUrl(e.target.value)}
+                        placeholder="https://etherscan.io/tx/... or document url"
+                        style={{
+                          width: '100%',
+                          background: C.elevated,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '6px 10px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button
+                        onClick={() => setShowAddProofForm(false)}
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '11px',
+                          background: 'transparent',
+                          border: `1px solid ${C.border}`,
+                          color: C.sub,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!proofTitle || !proofContent) {
+                            alert("Proof title and description are required.");
+                            return;
+                          }
+                          const newProof = {
+                            proof_type: proofType,
+                            title: proofTitle,
+                            content: proofContent,
+                            media_urls: proofMediaUrl ? [proofMediaUrl] : [],
+                          };
+                          setProofsList([...proofsList, newProof]);
+                          setShowAddProofForm(false);
+                          setProofTitle('');
+                          setProofContent('');
+                          setProofMediaUrl('');
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '11px',
+                          background: C.blueLight,
+                          border: 'none',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Stake Panel slides in smoothly */}
           <div className="animate-fadeUp" style={{ marginBottom: '24px' }}>
             <div style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -1761,10 +2200,10 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                     ✓ IF PROVEN RIGHT (YIELD + REPUTATION)
                   </span>
                   <span style={{ color: '#ffffff', fontSize: '15px', fontWeight: 800, fontFamily: FONTS.display, display: 'block' }}>
-                    USDC returned + Honor (⚡) Earned
+                    USDC returned + <TermTooltip term="honor">Honor (⚡) Earned</TermTooltip>
                   </span>
                   <p style={{ fontSize: '11px', color: C.sub, marginTop: '4px', lineHeight: '1.4' }}>
-                    Collect back your ${capitalStake} USDC collateral plus extra settlement yield from faded positions, **alongside a protocol reward of +{Math.round(capitalStake * 3.0)}⚡ Honor reputation!**
+                    Collect back your ${capitalStake} <TermTooltip term="capital">USDC collateral</TermTooltip> plus extra settlement yield from <TermTooltip term="faded">faded positions</TermTooltip>, <strong>alongside a protocol reward of +{Math.round(capitalStake * 3.0)}⚡ <TermTooltip term="honor">Honor reputation!</TermTooltip></strong>
                   </p>
                 </div>
 
@@ -1776,7 +2215,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                     Collateral Diluted
                   </span>
                   <p style={{ fontSize: '11px', color: C.sub, marginTop: '4px', lineHeight: '1.4' }}>
-                    Court lobby counter-claimants dilute your ${capitalStake} USDC locked stake. No Honor reputation gained.
+                    Court lobby counter-claimants dilute your ${capitalStake} USDC locked <TermTooltip term="capital">stake</TermTooltip>. No <TermTooltip term="honor">Honor reputation</TermTooltip> gained.
                   </p>
                 </div>
               </div>
@@ -1876,8 +2315,8 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
               {/* Progress Log output */}
               <div
                 style={{
-                  background: '#040406',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
                   borderRadius: '8px',
                   padding: '8px 10px',
                   fontFamily: FONTS.mono,
@@ -1914,7 +2353,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
               </Btn>
             </div>
           ) : (
-            <div style={{ marginTop: '14px', padding: '12px', textAlign: 'center', fontSize: '12px', color: C.sub, fontFamily: FONTS.mono, background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: `1px dashed ${C.border}` }}>
+            <div style={{ marginTop: '14px', padding: '12px', textAlign: 'center', fontSize: '12px', color: C.sub, fontFamily: FONTS.mono, background: C.deep, borderRadius: '10px', border: `1px dashed ${C.border}` }}>
               <span>🔒 Escrow operations in progress... Do not exit page.</span>
             </div>
           )}

@@ -15,7 +15,7 @@ import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
 import { PROOF_TYPES } from '../data';
 import DropimusProtocolAPI from '../lib/walletAndGoogle';
-import { signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
+import { signUSDCApprovalAndDeposit, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import { StakeCalculator } from '../components/shared/StakeCalculator';
 import CountdownTimer from '../components/shared/CountdownTimer';
 import {
@@ -32,20 +32,20 @@ const CustomTooltip = ({ active, payload }: any) => {
     const data = payload[0].payload;
     return (
       <div style={{
-        background: 'rgba(7, 6, 10, 0.95)',
+        background: C.card,
         border: `1px solid ${C.border}`,
         borderRadius: '8px',
         padding: '8px 12px',
         fontSize: '11px',
         fontFamily: FONTS.mono,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         zIndex: 9999,
       }}>
         <div style={{ color: C.sub, marginBottom: '2px' }}>{data.epoch}</div>
         <div style={{ fontWeight: 800, color: data.color }}>
           PROVEN: {payload[0].value}% Consensus
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}>
+        <div style={{ color: C.sub, fontSize: '10px' }}>
           Confidence Ratio: {payload[0].value}% / {100 - payload[0].value}%
         </div>
       </div>
@@ -119,6 +119,42 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
   const [capitalStake, setCapitalStake] = useState<number>(5);
   const [capitalStakeInput, setCapitalStakeInput] = useState<string>('5');
   const [evidenceList, setEvidenceList] = useState<Proof[]>([]);
+
+  // Anchor Evidence states
+  const [anchorEvidence, setAnchorEvidence] = useState<any[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState<boolean>(false);
+  const [addingAnchorEvidence, setAddingAnchorEvidence] = useState<boolean>(false);
+  const [newAnchorProofType, setNewAnchorProofType] = useState<string>('on-chain');
+  const [newAnchorProofTitle, setNewAnchorProofTitle] = useState<string>('');
+  const [newAnchorProofDesc, setNewAnchorProofDesc] = useState<string>('');
+  const [newAnchorProofMediaUrl, setNewAnchorProofMediaUrl] = useState<string>('');
+  const [upgradeTier, setUpgradeTier] = useState<string>(''); // "" | "soft" | "hard"
+  const [evidenceError, setEvidenceError] = useState<string>('');
+  const [evidenceSuccess, setEvidenceSuccess] = useState<boolean>(false);
+
+  const fetchAnchorEvidence = async () => {
+    if (!claim.id) return;
+    setLoadingEvidence(true);
+    try {
+      const res = await DropimusAPI.listClaimEvidence(claim.id);
+      if (res && res.success && Array.isArray(res.data)) {
+        setAnchorEvidence(res.data);
+      } else if (res && Array.isArray(res.data)) {
+        setAnchorEvidence(res.data);
+      } else {
+        setAnchorEvidence([]);
+      }
+    } catch (err) {
+      console.warn("Could not load anchor evidence:", err);
+      setAnchorEvidence([]);
+    } finally {
+      setLoadingEvidence(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnchorEvidence();
+  }, [claim.id]);
   
   // Wallet contract signature progress wizard states
   const [signingStage, setSigningStage] = useState<'idle' | 'approve' | 'deposit' | 'sign' | 'complete' | 'error'>('idle');
@@ -265,7 +301,10 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
       <div
         style={{
           background: C.card,
+          backdropFilter: 'blur(20px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(190%)',
           border: `1px solid ${C.border}`,
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
           borderRadius: '24px',
           padding: '20px',
           marginBottom: '16px',
@@ -353,6 +392,345 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
         </div>
       </div>
 
+      {/* Anchorer Evidence Section */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: '16px',
+          padding: '16px',
+          marginBottom: '18px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Zap size={14} style={{ color: C.goldBright }} />
+            <span style={{ fontSize: '10px', color: C.text, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              PRIMARY ANCHOR EVIDENCE
+            </span>
+          </div>
+          {walletConnected && wallet.address && (
+            (wallet.address.toLowerCase() === claim.anchorer?.toLowerCase() ||
+            (claim.anchorer && claim.anchorer.startsWith('0x') && wallet.address.toLowerCase().startsWith(claim.anchorer.slice(0, 6).toLowerCase())))
+          ) && !addingAnchorEvidence && (
+            <button
+              onClick={() => {
+                setAddingAnchorEvidence(true);
+                setNewAnchorProofTitle('');
+                setNewAnchorProofDesc('');
+                setNewAnchorProofMediaUrl('');
+                setUpgradeTier('');
+                setEvidenceError('');
+                setEvidenceSuccess(false);
+              }}
+              style={{
+                fontSize: '11px',
+                color: C.blueLight,
+                fontWeight: 700,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              + Add Evidence
+            </button>
+          )}
+        </div>
+
+        {/* Display Evidence Checklist */}
+        {loadingEvidence ? (
+          <span style={{ fontSize: '11px', color: C.sub, fontFamily: FONTS.mono }}>Loading court verification files...</span>
+        ) : anchorEvidence && anchorEvidence.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+            {anchorEvidence.map((proof: any, idx: number) => (
+              <div
+                key={proof.id || idx}
+                style={{
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '10px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '8px',
+                      textTransform: 'uppercase',
+                      fontWeight: 800,
+                      background: '#111827',
+                      color: C.goldBright,
+                      border: `1px solid ${C.gold}33`,
+                      padding: '2px 4px',
+                      borderRadius: '4px',
+                      fontFamily: FONTS.mono,
+                    }}
+                  >
+                    {proof.proof_type || 'proof'}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff' }}>
+                    {proof.title}
+                  </span>
+                </div>
+                <p style={{ fontSize: '11px', color: C.sub, margin: 0 }}>{proof.content}</p>
+                {proof.media_urls && proof.media_urls.length > 0 && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    {proof.media_urls.map((url: string, uidx: number) => (
+                      <a
+                        key={uidx}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          fontSize: '10px',
+                          color: C.blueLight,
+                          textDecoration: 'underline',
+                          fontFamily: FONTS.mono,
+                        }}
+                      >
+                        [Verification Asset #{uidx + 1}]
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: '11px', color: C.sub, margin: 0, fontStyle: 'italic' }}>
+            No verified proofs have been registered. Claim resolution resides at the baseline multiplier.
+          </p>
+        )}
+
+        {/* Add evidence form for the anchorer */}
+        {addingAnchorEvidence && (
+          <div
+            className="animate-fadeUp"
+            style={{
+              marginTop: '12px',
+              borderTop: `1px solid ${C.border}`,
+              paddingTop: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            <span style={{ fontSize: '11px', color: C.text, fontWeight: 700 }}>
+              UPLOAD EVIDENCE SUB-LEDGER
+            </span>
+
+            {evidenceError && (
+              <div style={{ color: '#EF4444', fontSize: '11px', fontFamily: FONTS.mono }}>
+                ✕ {evidenceError}
+              </div>
+            )}
+            {evidenceSuccess && (
+              <div style={{ color: '#10B981', fontSize: '11px', fontFamily: FONTS.mono }}>
+                ✓ Supporting evidence registered in Base court successfully!
+              </div>
+            )}
+
+            <div>
+              <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                Proof Type:
+              </label>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {['on-chain', 'article', 'document', 'social'].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setNewAnchorProofType(t)}
+                    style={{
+                      flex: 1,
+                      padding: '5px 2px',
+                      borderRadius: '6px',
+                      background: newAnchorProofType === t ? 'rgba(0, 82, 255, 0.08)' : 'transparent',
+                      border: `1px solid ${newAnchorProofType === t ? C.blueLight : C.border}`,
+                      color: newAnchorProofType === t ? C.blueLight : C.sub,
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                Proof Title:
+              </label>
+              <input
+                type="text"
+                value={newAnchorProofTitle}
+                onChange={(e) => setNewAnchorProofTitle(e.target.value)}
+                placeholder="e.g., On-chain hash snapshot"
+                style={{
+                  width: '100%',
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                Description / Verification Content:
+              </label>
+              <textarea
+                rows={2}
+                value={newAnchorProofDesc}
+                onChange={(e) => setNewAnchorProofDesc(e.target.value)}
+                placeholder="Details of the proof block, article quotes, verification parameters..."
+                style={{
+                  width: '100%',
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  outline: 'none',
+                  resize: 'none',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                Attached Document URL / Media URL (Optional):
+              </label>
+              <input
+                type="text"
+                value={newAnchorProofMediaUrl}
+                onChange={(e) => setNewAnchorProofMediaUrl(e.target.value)}
+                placeholder="https://example.com/snapshot.pdf"
+                style={{
+                  width: '100%',
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
+                Upgrade Consensual Evidence Tier (Optional):
+              </label>
+              <select
+                value={upgradeTier}
+                onChange={(e) => setUpgradeTier(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: C.deep,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  outline: 'none',
+                }}
+              >
+                <option value="">Keep current tier</option>
+                <option value="soft">Soft Tier (2.0x Reward Multiplier)</option>
+                <option value="hard">Hard Tier (6.0x Reward Multiplier)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+              <button
+                onClick={() => setAddingAnchorEvidence(false)}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  fontSize: '12px',
+                  background: 'transparent',
+                  border: `1px solid ${C.border}`,
+                  color: C.sub,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!newAnchorProofTitle || !newAnchorProofDesc) {
+                    setEvidenceError("Proof title and description are required.");
+                    return;
+                  }
+                  const accessToken = localStorage.getItem('dropimus_jwt_access_token');
+                  if (!accessToken) {
+                    setEvidenceError("Authentication session expired. Please log in.");
+                    return;
+                  }
+
+                  try {
+                    const payload = {
+                      proof_type: upgradeTier || undefined,
+                      proofs: [
+                        {
+                          proof_type: newAnchorProofType,
+                          title: newAnchorProofTitle,
+                          content: newAnchorProofDesc,
+                          media_urls: newAnchorProofMediaUrl ? [newAnchorProofMediaUrl] : [],
+                        }
+                      ]
+                    };
+
+                    const res = await DropimusAPI.addClaimEvidence(claim.id, payload, accessToken);
+                    if (res && res.success) {
+                      setEvidenceSuccess(true);
+                      setNewAnchorProofTitle('');
+                      setNewAnchorProofDesc('');
+                      setNewAnchorProofMediaUrl('');
+                      setUpgradeTier('');
+                      setEvidenceError('');
+                      fetchAnchorEvidence();
+                      setTimeout(() => {
+                        setAddingAnchorEvidence(false);
+                        setEvidenceSuccess(false);
+                      }, 2000);
+                    } else {
+                      setEvidenceError(res?.detail || "Could not save evidence on the backend.");
+                    }
+                  } catch (err: any) {
+                    setEvidenceError(err?.message || "Failed to submit evidence.");
+                  }
+                }}
+                style={{
+                  flex: 2,
+                  padding: '8px',
+                  fontSize: '12px',
+                  background: C.blueLight,
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Register Evidence
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Resolution countdown timer */}
       <div style={{ marginBottom: '18px' }}>
         <CountdownTimer daysLeft={claim.daysLeft} status={claim.status} />
@@ -362,7 +740,10 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
       <div
         style={{
           background: C.card,
+          backdropFilter: 'blur(20px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(190%)',
           border: `1px solid ${C.border}`,
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
           borderRadius: '24px',
           padding: '20px',
           marginBottom: '18px',
@@ -416,7 +797,10 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
       <div
         style={{
           background: C.card,
+          backdropFilter: 'blur(20px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(190%)',
           border: `1px solid ${C.border}`,
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
           borderRadius: '24px',
           padding: '20px',
           marginBottom: '18px',
@@ -429,7 +813,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
             <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               PROVEN CONFIDENCE TREND LINE
             </span>
-            <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>
+            <span style={{ fontSize: '11px', color: C.sub }}>
               Historical reputation stake weight shifts over epoch blocks
             </span>
           </div>
@@ -455,24 +839,24 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
               </defs>
               <XAxis 
                 dataKey="epoch" 
-                stroke="rgba(255, 255, 255, 0.2)" 
+                stroke="var(--color-border)" 
                 fontSize={9} 
                 tickLine={false}
                 axisLine={false}
                 dy={8}
-                style={{ fontFamily: FONTS.mono }}
+                style={{ fontFamily: FONTS.mono, fill: C.sub }}
               />
               <YAxis 
                 domain={[0, 100]} 
-                stroke="rgba(255, 255, 255, 0.2)" 
+                stroke="var(--color-border)" 
                 fontSize={9} 
                 tickLine={false}
                 axisLine={false}
                 dx={-4}
-                style={{ fontFamily: FONTS.mono }}
+                style={{ fontFamily: FONTS.mono, fill: C.sub }}
                 tickFormatter={(value) => `${value}%`}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--color-border)', strokeWidth: 1 }} />
               <Area 
                 type="monotone" 
                 dataKey="confidence" 
@@ -480,14 +864,14 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                 strokeWidth={2} 
                 fillOpacity={1} 
                 fill={`url(#confidenceColor-${claim.id})`}
-                activeDot={{ r: 6, stroke: '#0e0b12', strokeWidth: 2, fill: chartColor }}
+                activeDot={{ r: 6, stroke: 'var(--color-canvas)', strokeWidth: 2, fill: chartColor }}
               />
             </AreaChart>
           </ResponsiveContainer>
          </div>
 
          {/* Legend / Info footer for chart */}
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid rgba(255, 255, 255, 0.04)`, fontSize: '10px', fontFamily: FONTS.mono, color: C.sub }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${C.border}`, fontSize: '10px', fontFamily: FONTS.mono, color: C.sub }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} /> 
             PROVEN: Consensus High
@@ -602,14 +986,14 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                   position: 'sticky',
                   top: '56px',
                   zIndex: 80,
-                  background: 'rgba(21, 19, 26, 0.88)',
+                  background: C.card,
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
                   borderRadius: '16px',
                   padding: '12px',
                   margin: '0 -10px 16px -10px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                  border: `1px solid ${C.border}`,
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -631,8 +1015,8 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       padding: '12px 6px',
                       borderRadius: '10px',
                       background: selectedSide === 'proven' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                      border: `2px solid ${selectedSide === 'proven' ? '#10B981' : 'rgba(255,255,255,0.06)'}`,
-                      color: selectedSide === 'proven' ? '#10B981' : 'rgba(255,255,255,0.45)',
+                      border: `2px solid ${selectedSide === 'proven' ? '#10B981' : C.border}`,
+                      color: selectedSide === 'proven' ? '#10B981' : C.sub,
                       fontSize: '12px',
                       fontWeight: 800,
                       cursor: 'pointer',
@@ -649,8 +1033,8 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       padding: '12px 6px',
                       borderRadius: '10px',
                       background: selectedSide === 'faded' ? 'rgba(217, 48, 80, 0.15)' : 'transparent',
-                      border: `2px solid ${selectedSide === 'faded' ? C.faded : 'rgba(255,255,255,0.06)'}`,
-                      color: selectedSide === 'faded' ? C.fadedBright : 'rgba(255,255,255,0.45)',
+                      border: `2px solid ${selectedSide === 'faded' ? C.faded : C.border}`,
+                      color: selectedSide === 'faded' ? C.fadedBright : C.sub,
                       fontSize: '12px',
                       fontWeight: 800,
                       cursor: 'pointer',
@@ -673,10 +1057,10 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                   marginBottom: '16px',
                   fontSize: '11px',
                   lineHeight: '1.5',
-                  color: 'rgba(255, 255, 255, 0.7)',
+                  color: C.sub,
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: '10px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', letterSpacing: '0.04em' }}>
+                <div style={{ fontWeight: 800, fontSize: '10px', color: C.text, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', letterSpacing: '0.04em' }}>
                   <Zap size={12} style={{ color: C.blueLight }} /> WHAT IS HONOR? (ON-CHAIN REP)
                 </div>
                 Honor (⚡) is your reputation rating on the protocol. Correct resolutions earn you **extra USDC yield plus a protocol-computed boost to your standard Honor** balance. Wrong evaluations result in both USDC loss and reputation decay. Your reputation delta is determined automatically by the protocol at settlement based on the capital you risk and your proof quality, preventing strategic optimization behavior.
@@ -1347,7 +1731,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', fontSize: '10px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>
                   <AlertTriangle size={12} style={{ flexShrink: 0 }} />
                   <span>
-                    Slashed funds are permanently locked. Your transaction will be verified by decentralized nodes on-chain.
+                    Slashed funds are permanently locked. Your transaction will be verified by decentralized validators on-chain.
                   </span>
                 </div>
               )}

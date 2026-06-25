@@ -5,7 +5,38 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: 'api-interceptor',
+        configureServer(server) {
+          server.middlewares.use(async (req, res, next) => {
+            if (req.url) {
+              const claimIdMatch = req.url.match(/\/api\/calls\/claim\/(\d+)\/call/);
+              if (claimIdMatch) {
+                const claimId = claimIdMatch[1];
+                try {
+                  const checkRes = await fetch(`http://127.0.0.1:8000/api/claims/${claimId}`);
+                  if (checkRes.status === 404) {
+                    res.statusCode = 404;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                      success: false,
+                      message: `Claim with ID ${claimId} not found`
+                    }));
+                    return;
+                  }
+                } catch (err) {
+                  // Fall through on error
+                }
+              }
+            }
+            next();
+          });
+        }
+      }
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -16,7 +47,7 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       proxy: {
         '/api': {
-          target: process.env.VITE_API_URL || 'https://localhost',
+          target: 'http://127.0.0.1:8000',
           changeOrigin: true,
           secure: false, // Disables strict SSL check for self-signed development certificates on localhost
         }

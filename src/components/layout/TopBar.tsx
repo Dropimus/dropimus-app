@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { C, FONTS } from '../../tokens';
 import { LogoWordmark, IconHonor, IconCourt, IconAnchor, IconRank, IconProfile } from '../icons';
 import DropimusProtocolAPI, { GoogleUser, Wallet } from '../../lib/walletAndGoogle';
-
+import { Btn } from '../shared/Btn';
 interface TopBarProps {
   wallet: Wallet;
   googleUser: GoogleUser;
@@ -20,6 +20,8 @@ interface TopBarProps {
 export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage, onClearSelectedClaim }: TopBarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
+  const triggerContainerRef = React.useRef<HTMLDivElement>(null);
+  const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -28,6 +30,22 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (dropdownOpen && triggerContainerRef.current) {
+      const rect = triggerContainerRef.current.getBoundingClientRect();
+      const dropdownWidth = 260;
+      let left = rect.left - dropdownWidth + rect.width;
+      if (left < 10) left = 10;
+      if (left + dropdownWidth > window.innerWidth - 10) {
+        left = window.innerWidth - dropdownWidth - 10;
+      }
+      setDropdownCoords({
+        top: rect.bottom + window.scrollY + 10,
+        left: left,
+      });
+    }
+  }, [dropdownOpen]);
+
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
   };
@@ -35,10 +53,24 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
   const handleToggleGoogle = () => {
     if (googleUser.loggedIn) {
       DropimusProtocolAPI.logoutWithGoogle();
+      onUpdate();
     } else {
-      DropimusProtocolAPI.loginWithGoogle();
+      fetch(`${window.location.origin}/api/auth/google/login`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          if (data.redirect_url) {
+            window.location.href = data.redirect_url;
+          } else {
+            throw new Error("Invalid redirect response");
+          }
+        })
+        .catch(err => {
+          console.error("TopBar Google connection error:", err);
+        });
     }
-    onUpdate();
   };
 
   const handleToggleWallet = () => {
@@ -52,18 +84,21 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
 
   return (
     <header
+      className="top-bar-sticky animate-fadeDown"
       style={{
         position: 'sticky',
         top: 0,
-        zIndex: 99,
-        background: 'rgba(5, 5, 8, 0.7)',
-        backdropFilter: 'blur(30px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(160%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        zIndex: 50,
+        background: C.card,
+        backdropFilter: 'blur(20px) saturate(190%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(190%)',
+        borderBottom: `1px solid ${C.border}`,
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.35)',
         padding: '11px 16px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        transition: 'background 0.25s ease, border-color 0.25s ease',
       }}
     >
       {/* Wordmark and Hexagonal Sigil */}
@@ -82,8 +117,8 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
         <div
           style={{
             display: 'flex',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
+            background: C.deep,
+            border: `1px solid ${C.border}`,
             borderRadius: '99px',
             padding: '3px',
             gap: '2px',
@@ -111,7 +146,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
                   alignItems: 'center',
                   gap: '6px',
                   background: isSelected ? C.blueDim : 'transparent',
-                  border: `1px solid ${isSelected ? 'rgba(255, 255, 255, 0.06)' : 'transparent'}`,
+                  border: `1px solid ${isSelected ? C.border : 'transparent'}`,
                   borderRadius: '99px',
                   padding: '5px 12px',
                   cursor: 'pointer',
@@ -125,7 +160,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
                 onMouseEnter={(e) => {
                   if (!isSelected) {
                     e.currentTarget.style.color = C.text;
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.015)';
+                    e.currentTarget.style.background = C.deep;
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -144,7 +179,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
       )}
 
       {/* Account actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+      <div ref={triggerContainerRef} style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
         
         {/* Reputation chip (USDC/Honor combined status view) */}
         {wallet.connected && (
@@ -204,20 +239,19 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
         {/* Google & Web3 Interactive Dropdown Menu in standard clean premium style */}
         {dropdownOpen && (
           <div
-            className="animate-fadeUp"
+            className="glassmorphic animate-fadeUp"
             style={{
-              position: 'absolute',
-              top: '42px',
-              right: 0,
-              width: '260px',
-              background: C.card,
-              border: `1px solid ${C.border2}`,
-              borderRadius: '12px',
-              padding: '16px',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+              position: 'fixed',
+              top: `${dropdownCoords.top}px`,
+              left: `${dropdownCoords.left}px`,
+              right: 'auto',
+              width: '290px',
+              maxWidth: 'calc(100vw - 32px)',
+              borderRadius: '18px',
+              padding: '18px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '14px',
+              gap: '16px',
               zIndex: 101,
             }}
           >
@@ -260,7 +294,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
 
             <div style={{ height: '1px', background: C.hairline }} />
 
-            {/* Wallet Details */}
+            {/* Wallet & On-Chain Stats: Responsive Single-Row Horizontal Grid */}
             <div>
               <div
                 style={{
@@ -269,31 +303,102 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
                   fontWeight: 700,
                   letterSpacing: '0.1em',
                   textTransform: 'uppercase',
-                  marginBottom: '6px',
+                  marginBottom: '8px',
                 }}
               >
-                On-Chain Node (Wallet)
+                On-Chain Credentials & Stats
               </div>
               {wallet.connected ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: '11px', color: C.blueLight }}>
-                    {wallet.address}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Compact Wallet Address Badge */}
+                  <div 
+                    title={wallet.address}
+                    style={{ 
+                      fontFamily: FONTS.mono, 
+                      fontSize: '11px', 
+                      color: C.blueLight,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {wallet.address && wallet.address.length > 15 
+                      ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` 
+                      : wallet.address}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: C.sub, marginTop: '2px' }}>
-                    <span>Capital Balance:</span>
-                    <span style={{ fontFamily: FONTS.mono, color: C.goldBright, fontWeight: 700 }}>
-                      ${wallet.balanceUSDC} USDC
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: C.sub }}>
-                    <span>Reputation Tier:</span>
-                    <span style={{ fontWeight: 700, color: C.blueLight }}>
-                      {wallet.tier}
-                    </span>
+                  
+                  {/* Responsive Single-Row Horizontal Grid for Stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    {/* Capital Stat */}
+                    <div
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '8px',
+                        padding: '6px 2px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '8px', color: C.sub, fontWeight: 550, marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Capital</span>
+                      <span style={{ fontFamily: FONTS.mono, color: C.goldBright, fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        ${wallet.balanceUSDC}
+                      </span>
+                    </div>
+
+                    {/* Honor Stat */}
+                    <div
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '8px',
+                        padding: '6px 2px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '8px', color: C.sub, fontWeight: 550, marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Honor</span>
+                      <span style={{ fontFamily: FONTS.mono, color: '#10B981', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {wallet.balanceHonor}
+                      </span>
+                    </div>
+
+                    {/* Tier Stat */}
+                    <div
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '8px',
+                        padding: '6px 2px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '8px', color: C.sub, fontWeight: 550, marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Tier</span>
+                      <span style={{ color: C.blueLight, fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {wallet.tier}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <span style={{ fontSize: '12px', color: C.sub, fontStyle: 'italic' }}>Wallet disconnected</span>
+                <div style={{ fontSize: '11px', color: C.sub, fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
+                  Wallet disconnected
+                </div>
               )}
             </div>
 
@@ -301,41 +406,31 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
+              <Btn
+                variant={googleUser.loggedIn ? 'danger' : 'secondary'}
+                fullWidth
                 onClick={handleToggleGoogle}
                 style={{
-                  background: googleUser.loggedIn ? `rgba(217,48,80,0.1)` : C.blueDim,
-                  border: `1px solid ${googleUser.loggedIn ? C.faded + '44' : C.blueLight + '44'}`,
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  color: googleUser.loggedIn ? C.fadedBright : C.blueLight,
+                  padding: '10px 12px',
                   fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.12s',
+                  borderRadius: '10px',
                 }}
               >
                 {googleUser.loggedIn ? "Sign Out Google" : "Connect with Google"}
-              </button>
+              </Btn>
 
-              <button
+              <Btn
+                variant={wallet.connected ? 'secondary' : 'gold'}
+                fullWidth
                 onClick={handleToggleWallet}
                 style={{
-                  background: wallet.connected ? 'transparent' : C.goldDim,
-                  border: `1px solid ${wallet.connected ? C.border : C.gold + '44'}`,
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  color: wallet.connected ? C.sub : C.goldBright,
+                  padding: '10px 12px',
                   fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.12s',
+                  borderRadius: '10px',
                 }}
               >
                 {wallet.connected ? "Disconnect Wallet" : "Connect Web3 Wallet"}
-              </button>
+              </Btn>
             </div>
 
             {/* Close trigger overlay */}

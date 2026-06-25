@@ -17,41 +17,45 @@ interface BtnProps {
 }
 
 export function Btn({ variant = 'secondary', fullWidth = false, style, children, disabled, onClick, ...props }: BtnProps) {
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [isActive, setIsActive] = React.useState(false);
+
   let bg = '';
   let color = '#fff';
   let border = 'none';
   let boxShadow = 'none';
-  let hoverStyles: React.CSSProperties = {};
 
   switch (variant) {
     case 'primary':
-      bg = C.blue;
+      bg = isHovered ? C.blueHover : C.blue;
       color = '#000000';
-      boxShadow = `0 4px 18px ${C.blueGlow}`;
+      boxShadow = isHovered 
+        ? `0 6px 24px rgba(255, 255, 255, 0.15)`
+        : `0 4px 18px ${C.blueGlow}`;
       break;
 
     case 'secondary':
-      bg = 'transparent';
-      border = `1px solid ${C.border}`;
-      color = C.text;
+      bg = isHovered ? 'rgba(255, 255, 255, 0.05)' : 'transparent';
+      border = `1px solid ${isHovered ? C.blueLight : C.border}`;
+      color = isHovered ? '#ffffff' : C.text;
       break;
 
     case 'danger':
-      bg = 'transparent';
-      border = `1px solid ${C.faded}44`;
+      bg = isHovered ? `${C.faded}15` : 'transparent';
+      border = `1px solid ${isHovered ? C.fadedBright : `${C.faded}44`}`;
       color = C.fadedBright;
       break;
 
     case 'gold':
-      bg = 'transparent';
-      border = `1px solid ${C.gold}44`;
+      bg = isHovered ? `${C.gold}15` : 'transparent';
+      border = `1px solid ${isHovered ? C.goldBright : `${C.gold}44`}`;
       color = C.goldBright;
       break;
 
     case 'ghost':
-      bg = C.elevated;
-      border = `1px solid ${C.border}`;
-      color = C.sub;
+      bg = isHovered ? 'rgba(255, 255, 255, 0.08)' : C.elevated;
+      border = `1px solid ${isHovered ? C.border2 : C.border}`;
+      color = isHovered ? '#ffffff' : C.sub;
       break;
   }
 
@@ -62,7 +66,7 @@ export function Btn({ variant = 'secondary', fullWidth = false, style, children,
     fontSize: '13px',
     fontWeight: 600,
     cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all 0.12s ease',
+    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
     border: border,
     background: bg,
     color: color,
@@ -73,7 +77,7 @@ export function Btn({ variant = 'secondary', fullWidth = false, style, children,
     gap: '6px',
     width: fullWidth ? '100%' : 'auto',
     opacity: disabled ? 0.38 : 1,
-    transform: 'none',
+    transform: isActive && !disabled ? 'scale(0.96)' : isHovered && !disabled ? 'translateY(-1px)' : 'none',
   };
 
   return (
@@ -81,6 +85,13 @@ export function Btn({ variant = 'secondary', fullWidth = false, style, children,
       style={{ ...baseStyle, ...style }}
       disabled={disabled}
       onClick={onClick}
+      onMouseEnter={() => !disabled && setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsActive(false);
+      }}
+      onMouseDown={() => !disabled && setIsActive(true)}
+      onMouseUp={() => !disabled && setIsActive(false)}
       {...props}
     >
       {children}

@@ -80,11 +80,17 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
   };
 
   const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4500);
+    setToasts(prev => {
+      // De-duplicate: If a toast with the exact same message is currently displaying, do not append a new one.
+      if (prev.some(t => t.message === message)) {
+        return prev;
+      }
+      const id = Math.random().toString(36).substring(2, 9);
+      setTimeout(() => {
+        setToasts(current => current.filter(t => t.id !== id));
+      }, 4500);
+      return [...prev, { id, type, message }];
+    });
   };
 
   useEffect(() => {
@@ -419,7 +425,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
 
             {/* Float visual branding labels inside the mandala */}
             <div className="absolute text-[8px] font-mono tracking-widest text-zinc-500 bg-zinc-950/80 px-2 py-0.5 border border-white/5 rounded backdrop-blur" style={{ top: '15%', left: '8%' }}>
-              NODE_A
+              WALLET_A
             </div>
             <div className="absolute text-[8px] font-mono tracking-widest text-[#E6C15C] bg-zinc-950/80 px-2 py-0.5 border border-[#E6C15C]/10 rounded backdrop-blur" style={{ top: '15%', right: '5%' }}>
               ACTIVE_ARBITER
@@ -434,7 +440,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
               Anchored Reputational Consensus
             </h2>
             <p className="text-zinc-400 text-xs leading-relaxed mt-3 px-4">
-              Secure evaluation consensus nodes. Leverage verified cryptographic models on the Base Sepolia ledger and earn dual rewards.
+              Secure evaluation consensus wallets. Leverage verified cryptographic models on the Base Sepolia ledger and earn dual rewards.
             </p>
           </div>
         </div>
@@ -468,9 +474,9 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
             id="auth-panel-wrapper"
             className="relative w-full p-8 sm:p-12 md:p-14 rounded-[36px] text-center border transition-all duration-300"
             style={{
-              background: 'linear-gradient(180deg, rgba(14, 14, 18, 0.55) 0%, rgba(5, 5, 6, 0.95) 100%)',
-              borderColor: 'rgba(255, 255, 255, 0.05)',
-              boxShadow: '0 50px 100px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.02)',
+              background: C.card,
+              borderColor: C.border,
+              boxShadow: '0 50px 100px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.02)',
               backdropFilter: 'blur(30px)',
             }}
           >
@@ -731,7 +737,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
 // Resolves structural whole-page re-renders on every tick (rendering bypass)
 const TickerLogsTerminal = React.memo(() => {
   const [tickerLogs, setTickerLogs] = useState<string[]>([
-    "Node consensus synched on block #4,892,109",
+    "Wallet consensus synched on block #4,892,109",
     "Proof validated on claim #104: BTC/USDC above threshold",
     "Consensus weight finalized with 142.50M Honor points",
     "SIWE session assigned to validator 0xWozny...5f4",
@@ -743,11 +749,11 @@ const TickerLogsTerminal = React.memo(() => {
       "Securing dual-staking assertion pool with 12,500 USDC...",
       "Consensus finality resolved in < 2.3s on Base Sepolia.",
       "Arbitrage resolution: Consensus accuracy threshold matched 87.5%",
-      "Consortia signature verified for Node #502",
+      "Consortia signature verified for Wallet #502",
       "Analyzing forensic on-chain metrics stream...",
       "Block #4,892,112 proposed: 489 claims active in verification queue.",
       "Vanguard court lock updated: Current finality grade [A+]",
-      "Node consensus synched on block #4,892,114",
+      "Wallet consensus synched on block #4,892,114",
       "Validator 0xTimCook...fa5 joined concordance pool",
       "Validator 0xCraigF...a12 assigned as arbiter"
     ];

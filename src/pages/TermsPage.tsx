@@ -26,7 +26,8 @@ export function TermsPage({ onBack }: TermsPageProps) {
       <div className="mb-10">
         <button
           onClick={onBack}
-          className="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white hover:translate-x-[-2px] transition-all duration-200 cursor-pointer text-left font-semibold uppercase tracking-wider"
+          className="flex items-center gap-2.5 text-xs text-gray-400 hover:translate-x-[-2px] transition-all duration-200 cursor-pointer text-left font-semibold uppercase tracking-wider"
+          style={{ color: C.sub }}
         >
           <ChevronLeft size={16} /> Back to Authentication Gate
         </button>
@@ -36,32 +37,32 @@ export function TermsPage({ onBack }: TermsPageProps) {
       <div 
         className="p-8 md:p-12 rounded-[28px] border mb-10 text-left"
         style={{
-          background: 'linear-gradient(135deg, rgba(8, 8, 8, 0.9) 0%, rgba(12, 12, 12, 1) 100%)',
+          background: C.card,
           borderColor: C.border,
-          boxShadow: '0 24px 50px rgba(0,0,0,0.6)',
+          boxShadow: '0 24px 50px rgba(0,0,0,0.1)',
         }}
       >
         <div className="flex flex-col md:flex-row md:items-center gap-5 mb-6">
           <div 
-            className="flex items-center justify-center w-14 h-14 rounded-full border border-white/10 shrink-0"
-            style={{ background: 'rgba(255,255,255,0.03)' }}
+            className="flex items-center justify-center w-14 h-14 rounded-full border shrink-0"
+            style={{ background: C.deep, borderColor: C.border }}
           >
-            <Scale size={24} className="text-white" />
+            <Scale size={24} style={{ color: C.text }} />
           </div>
           <div>
             <h1 
-              className="text-2xl md:text-3xl font-black tracking-tight text-white mb-2"
-              style={{ fontFamily: FONTS.display }}
+              className="text-2xl md:text-3xl font-black tracking-tight mb-2"
+              style={{ fontFamily: FONTS.display, color: C.text }}
             >
               Terms of Agreement & Consensus Policy
             </h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono font-semibold">
+            <p className="text-[10px] uppercase tracking-widest font-mono font-semibold" style={{ color: C.sub }}>
               Last Updated: June 13, 2026 • Dropimus Protocol v1.4
             </p>
           </div>
         </div>
 
-        <p className="text-xs md:text-sm text-gray-300 leading-relaxed max-w-2xl">
+        <p className="text-xs md:text-sm leading-relaxed max-w-2xl" style={{ color: C.sub }}>
           Please review this document thoroughly before interacting with the Dropimus Protocol. By accessing this reputational consensus engine, you explicitly consent to these legally-binding provisions.
         </p>
       </div>
@@ -72,17 +73,17 @@ export function TermsPage({ onBack }: TermsPageProps) {
         {/* SECTION 1: NATURE OF SERVICE */}
         <div 
           className="p-6 md:p-8 rounded-[24px] border"
-          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-start gap-4 mb-4">
-            <Shield size={18} className="text-white mt-0.5 shrink-0" />
-            <h3 className="text-sm md:text-base font-extrabold text-white uppercase tracking-wider font-mono">
+            <Shield size={18} className="mt-0.5 shrink-0" style={{ color: C.text }} />
+            <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider font-mono" style={{ color: C.text }}>
               1. Non-Financial Nature of Reputational Voting
             </h3>
           </div>
-          <div className="text-xs md:text-[13px] text-gray-400 space-y-3.5 leading-relaxed pl-8">
+          <div className="text-xs md:text-[13px] space-y-3.5 leading-relaxed pl-8" style={{ color: C.sub }}>
             <p>
-              Dropimus operates strictly as an on-chain <strong className="text-white font-medium">Reputational Consensus Engine</strong>. It does NOT constitute an exchange, investment advisor, broker, or financial marketplace. 
+              Dropimus operates strictly as an on-chain <strong className="font-medium" style={{ color: C.text }}>Reputational Consensus Engine</strong>. It does NOT constitute an exchange, investment advisor, broker, or financial marketplace. 
             </p>
             <p>
               The "Honor" points and standard "USDC" staked on consensus outcomes are deployed on-chain to measure predictive accuracy, filter spam, and ensure skin-in-the-game for consensus resolution. These outcomes represent crowdsourced confidence indexing and should <strong className="text-yellow-400 font-semibold">never be construed as financial advice, investment evaluation, or speculative gaming</strong>.
@@ -93,17 +94,17 @@ export function TermsPage({ onBack }: TermsPageProps) {
         {/* SECTION 2: NO WARRANTIES & ACCURACY */}
         <div 
           className="p-6 md:p-8 rounded-[24px] border"
-          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-start gap-4 mb-4">
             <AlertTriangle size={18} className="text-[#FFC107] mt-0.5 shrink-0" />
-            <h3 className="text-sm md:text-base font-extrabold text-white uppercase tracking-wider font-mono">
+            <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider font-mono" style={{ color: C.text }}>
               2. Absolute Disclaimer of Warranties
             </h3>
           </div>
-          <div className="text-xs md:text-[13px] text-gray-400 space-y-3.5 leading-relaxed pl-8">
+          <div className="text-xs md:text-[13px] space-y-3.5 leading-relaxed pl-8" style={{ color: C.sub }}>
             <p>
-              The protocol and its associated web applet are provided <strong className="text-white font-medium">"AS IS" and "AS AVAILABLE"</strong> without any warranty of any kind, express or implied.
+              The protocol and its associated web applet are provided <strong className="font-medium" style={{ color: C.text }}>"AS IS" and "AS AVAILABLE"</strong> without any warranty of any kind, express or implied.
             </p>
             <p>
               Dropimus makes no claims, warranties, or guarantees regarding the uptime, correctness, or final resolution parameters of any crowdsourced claims. The resolution values are determined algorithmically, either via third-party Decentralized Oracles or consensus-weighted participant responses. You accept that resolution decisions are final, unappealable, and binding on all cryptographic keys.
@@ -114,11 +115,11 @@ export function TermsPage({ onBack }: TermsPageProps) {
         {/* SECTION 3: LIQUID COLLATERAL RISKS */}
         <div 
           className="p-6 md:p-8 rounded-[24px] border"
-          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-start gap-4 mb-4">
-            <Coins size={18} className="text-white mt-0.5 shrink-0" />
-            <h3 className="text-sm md:text-base font-extrabold text-white uppercase tracking-wider font-mono">
+            <Coins size={18} className="mt-0.5 shrink-0" style={{ color: C.text }} />
+            <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider font-mono" style={{ color: C.text }}>
               3. Collision Staking & Reputation Loss Risks
             </h3>
           </div>
@@ -135,15 +136,15 @@ export function TermsPage({ onBack }: TermsPageProps) {
         {/* SECTION 4: LOCAL REGULATIONS */}
         <div 
           className="p-6 md:p-8 rounded-[24px] border"
-          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-start gap-4 mb-4">
-            <FileText size={18} className="text-white mt-0.5 shrink-0" />
-            <h3 className="text-sm md:text-base font-extrabold text-white uppercase tracking-wider font-mono">
+            <FileText size={18} className="mt-0.5 shrink-0" style={{ color: C.text }} />
+            <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider font-mono" style={{ color: C.text }}>
               4. Regional Jurisdiction & RESTRICTED COUNTRIES
             </h3>
           </div>
-          <div className="text-xs md:text-[13px] text-gray-400 space-y-3.5 leading-relaxed pl-8">
+          <div className="text-xs md:text-[13px] space-y-3.5 leading-relaxed pl-8" style={{ color: C.sub }}>
             <p>
               Users are solely responsible for compliance with local regulations. Access to voting features may be geo-restricted or legally forbidden in certain jurisdictions (including but not limited to the United States of America, sanctioned OFAC regions, and specific EU territories).
             </p>
@@ -156,17 +157,17 @@ export function TermsPage({ onBack }: TermsPageProps) {
         {/* SECTION 5: LIMITATION OF LIABILITY */}
         <div 
           className="p-6 md:p-8 rounded-[24px] border"
-          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+          style={{ background: C.card, borderColor: C.border, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-start gap-4 mb-4">
-            <CheckCircle size={18} className="text-white mt-0.5 shrink-0" />
-            <h3 className="text-sm md:text-base font-extrabold text-white uppercase tracking-wider font-mono">
+            <CheckCircle size={18} className="mt-0.5 shrink-0" style={{ color: C.text }} />
+            <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider font-mono" style={{ color: C.text }}>
               5. Limitation of Liability & Indemnity
             </h3>
           </div>
-          <div className="text-xs md:text-[13px] text-gray-400 space-y-3.5 leading-relaxed pl-8">
+          <div className="text-xs md:text-[13px] space-y-3.5 leading-relaxed pl-8" style={{ color: C.sub }}>
             <p>
-              In no event shall Dropimus, its core node operators, contractors, or builders be held liable for any direct, indirect, incidental, special, exemplary, punitive, or consequential damages (including loss of wallet custody, system hacks, oracle errors, smart contract vulnerabilities, or capital liquidation).
+              In no event shall Dropimus, its core operators, contractors, or builders be held liable for any direct, indirect, incidental, special, exemplary, punitive, or consequential damages (including loss of wallet custody, system hacks, oracle errors, smart contract vulnerabilities, or capital liquidation).
             </p>
             <p>
               You agree to fully defend, indemnify, and hold harmless all contributors and developers from and against any claims, damages, obligations, losses, liabilities, costs, or debt arising from your interaction with the consensus court.

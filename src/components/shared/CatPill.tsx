@@ -6,11 +6,12 @@
 import React from 'react';
 import { CAT_COLORS } from '../../data';
 import { FONTS } from '../../tokens';
-import { Coins, Gift, Landmark, Trophy, TrendingUp, Folder } from 'lucide-react';
+import { Coins, Landmark, Trophy, TrendingUp, Folder } from 'lucide-react';
+import { IconParachute } from '../icons';
 
 const CAT_ICONS: Record<string, React.ComponentType<any>> = {
   Crypto: Coins,
-  Airdrops: Gift,
+  Airdrops: IconParachute,
   Politics: Landmark,
   Sports: Trophy,
   Finance: TrendingUp,

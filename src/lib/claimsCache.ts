@@ -168,9 +168,9 @@ export async function prefetchActiveClaims(): Promise<Claim[]> {
     console.warn('Prefetch backend fetch failed, using fallback source:', err);
   }
 
-  // If live data empty or offline, fallback to local simulated claims
-  if (!sourceClaims || sourceClaims.length === 0) {
-    sourceClaims = DropimusProtocolAPI.getClaims();
+  // If live data empty or offline, return an empty array or cached claims
+  if (!sourceClaims) {
+    sourceClaims = [];
   }
 
   // Activity calculation formula: activity = (capital + (honorStaked / 10)) * callers

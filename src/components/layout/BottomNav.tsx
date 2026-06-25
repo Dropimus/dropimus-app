@@ -38,10 +38,10 @@ export function BottomNav({ activePage, setActivePage, onClearSelectedClaim }: B
         left: 0,
         right: 0,
         zIndex: 100,
-        background: 'rgba(5, 5, 8, 0.7)',
+        background: C.card,
         backdropFilter: 'blur(30px) saturate(160%)',
         WebkitBackdropFilter: 'blur(30px) saturate(160%)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        borderTop: `1px solid ${C.border}`,
         display: 'flex',
         justifyContent: 'space-around',
         padding: '8px 0 calc(10px + env(safe-area-inset-bottom))',
@@ -156,7 +156,7 @@ export function BottomNav({ activePage, setActivePage, onClearSelectedClaim }: B
             border: `1.5px solid ${C.blueLight}88`,
           }}
         >
-          <IconAnchor size={22} color="#000000" />
+          <IconAnchor size={22} color="var(--color-canvas)" />
         </div>
         <span
           style={{

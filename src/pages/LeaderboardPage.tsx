@@ -43,7 +43,7 @@ export function LeaderboardPage() {
       if (rank === 1) return { color: C.goldBright, border: `1.5px solid ${C.gold}`, background: 'rgba(245, 158, 11, 0.15)' };
       if (rank === 2) return { color: '#E2E8F0', border: '1.5px solid #94A3B8', background: 'rgba(148, 163, 184, 0.15)' };
       if (rank === 3) return { color: '#FDBA74', border: '1.5px solid #C2410C', background: 'rgba(194, 65, 12, 0.15)' };
-      return { color: C.sub, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'transparent' };
+      return { color: C.sub, border: `1px solid ${C.border}`, background: 'transparent' };
     };
 
     return (
@@ -157,52 +157,52 @@ export function LeaderboardPage() {
           <div
             style={{
               display: 'flex',
-              background: '#0D0C10',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: C.deep,
+              border: `1px solid ${C.border}`,
               borderRadius: '99px',
-              padding: '5px',
+              padding: '4px',
               marginBottom: '20px',
             }}
           >
             <button
-              onClick={() => setActiveTab('foresight')}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '99px',
-                background: activeTab === 'foresight' ? 'linear-gradient(135deg, #10B981, #059669)' : 'transparent',
-                color: activeTab === 'foresight' ? '#000000' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '12px',
-                fontFamily: FONTS.display,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Foresight Specialists
-            </button>
-            <button
-              onClick={() => setActiveTab('evaluation')}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '99px',
-                background: activeTab === 'evaluation' ? 'linear-gradient(135deg, #10B981, #059669)' : 'transparent',
-                color: activeTab === 'evaluation' ? '#000000' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '12px',
-                fontFamily: FONTS.display,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Evaluation Experts
-            </button>
-          </div>
+               onClick={() => setActiveTab('foresight')}
+               style={{
+                 flex: 1,
+                 padding: '10px 14px',
+                 borderRadius: '99px',
+                 background: activeTab === 'foresight' ? C.elevated : 'transparent',
+                 color: activeTab === 'foresight' ? '#ffffff' : C.sub,
+                 border: activeTab === 'foresight' ? `1px solid ${C.border2}` : '1px solid transparent',
+                 fontWeight: activeTab === 'foresight' ? 700 : 550,
+                 fontSize: '12px',
+                 fontFamily: FONTS.display,
+                 cursor: 'pointer',
+                 textAlign: 'center',
+                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+               }}
+             >
+               Foresight Specialists
+             </button>
+             <button
+               onClick={() => setActiveTab('evaluation')}
+               style={{
+                 flex: 1,
+                 padding: '10px 14px',
+                 borderRadius: '99px',
+                 background: activeTab === 'evaluation' ? C.elevated : 'transparent',
+                 color: activeTab === 'evaluation' ? '#ffffff' : C.sub,
+                 border: activeTab === 'evaluation' ? `1px solid ${C.border2}` : '1px solid transparent',
+                 fontWeight: activeTab === 'evaluation' ? 700 : 550,
+                 fontSize: '12px',
+                 fontFamily: FONTS.display,
+                 cursor: 'pointer',
+                 textAlign: 'center',
+                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+               }}
+             >
+               Evaluation Experts
+             </button>
+           </div>
 
           {/* 2. Ranking loop rendering */}
           {renderRankingList(currentLeaders)}

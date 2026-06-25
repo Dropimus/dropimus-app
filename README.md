@@ -18,4 +18,3 @@ View your app in AI Studio: https://ai.studio/apps/a0249da7-2581-4b01-a90d-b31e0
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
-# dropimus-app

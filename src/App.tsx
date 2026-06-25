@@ -16,7 +16,7 @@ import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
 import DropimusProtocolAPI, { Claim, Wallet, GoogleUser, getAppKit } from './lib/walletAndGoogle';
 import { DropimusAPI } from './lib/dropimusAPI';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkeleton } from './components/shared/SkeletonLoader';
 import { getCachedClaims, saveClaimsToCache } from './lib/claimsCache';
 
@@ -100,6 +100,19 @@ export default function App() {
   // Page routing state
   const [activePage, setActivePage] = useState<'court' | 'honor' | 'anchor' | 'leaderboard' | 'profile'>('court');
   
+  // Theme is permanently locked to dark
+  const theme = 'dark';
+
+  // Sync theme attribute to HTML
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    try {
+      localStorage.setItem('dropimus_theme', 'dark');
+    } catch (e) {
+      console.warn("Theme saving failed:", e);
+    }
+  }, []);
+  
   // Responsive State
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
 
@@ -140,22 +153,21 @@ export default function App() {
     // Fetch values synchronously first for instant UI response
     const w = DropimusProtocolAPI.getWallet();
     const g = DropimusProtocolAPI.getGoogleUser();
-    const fallbackClaims = DropimusProtocolAPI.getClaims();
 
     setWallet(w);
     setGoogleUser(g);
 
-    // High performance load: Check IndexedDB cache first
+    // High performance load: Check IndexedDB cache first of actual live API claims
     try {
       const cachedClaims = await getCachedClaims();
       if (cachedClaims && cachedClaims.length > 0) {
         setClaimsList(cachedClaims);
       } else {
-        setClaimsList(fallbackClaims);
+        setClaimsList([]);
       }
     } catch (cacheErr) {
-      console.warn("App: IndexedDB retrieval error, falling back to LocalStorage:", cacheErr);
-      setClaimsList(fallbackClaims);
+      console.warn("App: IndexedDB retrieval error, falling back to empty:", cacheErr);
+      setClaimsList([]);
     }
 
     // Try loaded live public claims from real backend endpoints
@@ -199,6 +211,52 @@ export default function App() {
       }
     } catch (err) {
       console.warn("Could not fetch live claims from backend, using LocalStorage.", err);
+    }
+
+    // Dynamic backend configuration: sync real user details and honor balances
+    const token = localStorage.getItem('dropimus_jwt_access_token');
+    if (token) {
+      try {
+        const [meRes, usageRes] = await Promise.all([
+          DropimusAPI.getCurrentUser(token),
+          fetch(`${window.location.origin}/api/me/usage`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }).then(res => res.ok ? res.json() : null)
+        ]).catch(() => [null, null]);
+
+        if (meRes && meRes.success && meRes.data) {
+          const uData = meRes.data;
+          setGoogleUser(prev => {
+            const nextUsr = {
+              ...prev,
+              loggedIn: true,
+              name: uData.full_name || uData.username || prev.name,
+              email: uData.email || prev.email,
+            };
+            localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(nextUsr));
+            return nextUsr;
+          });
+
+          setWallet(prev => {
+            const updated = {
+              ...prev,
+              connected: true,
+              address: (uData.auth_providers?.includes("wallet") || uData.is_verified) ? (prev.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') : prev.address,
+            };
+            if (usageRes && usageRes.success && usageRes.data) {
+              updated.balanceHonor = usageRes.data.honor_status?.balance ?? updated.balanceHonor;
+              updated.tier = usageRes.data.honor_status?.title ?? updated.tier;
+            }
+            localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(updated));
+            DropimusProtocolAPI.saveWallet(updated);
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.warn("App: Live background profile/usage sync failed", err);
+      }
     }
   };
 
@@ -299,17 +357,16 @@ export default function App() {
           .catch((err: any) => console.warn("Error checking initial eth_accounts", err));
       }
 
-      // 2. Pre-populate claim lists instantly from local storage or IndexedDB
-      const fallbackClaims = DropimusProtocolAPI.getClaims();
+      // 2. Pre-populate claim lists instantly from IndexedDB cache of actual live claims
       try {
         const cached = await getCachedClaims();
         if (cached && cached.length > 0) {
           setClaimsList(cached);
         } else {
-          setClaimsList(fallbackClaims);
+          setClaimsList([]);
         }
       } catch (err) {
-        setClaimsList(fallbackClaims);
+        setClaimsList([]);
       }
 
       // 3. Detect OAuth redirect callbacks
@@ -582,60 +639,69 @@ export default function App() {
             initialExpand={initialExpandCall}
           />
         ) : (
-          /* Render designated nav view */
-          <div style={{ width: '100%' }}>
-            {activePage === 'court' && (
-              isLoading ? (
-                <CourtPageSkeleton />
-              ) : (
-                <CourtPage
-                  claims={claimsList}
-                  onSelectClaim={handleSelectClaim}
-                  onMakeCall={handleMakeCallClickInCard}
-                />
-              )
-            )}
+          /* Render designated nav view with smooth cross-fade page transition */
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              style={{ width: '100%' }}
+            >
+              {activePage === 'court' && (
+                isLoading ? (
+                  <CourtPageSkeleton />
+                ) : (
+                  <CourtPage
+                    claims={claimsList}
+                    onSelectClaim={handleSelectClaim}
+                    onMakeCall={handleMakeCallClickInCard}
+                  />
+                )
+              )}
 
-            {activePage === 'honor' && (
-              isLoading ? (
-                <HonorPageSkeleton />
-              ) : (
-                <HonorPage
+              {activePage === 'honor' && (
+                isLoading ? (
+                  <HonorPageSkeleton />
+                ) : (
+                  <HonorPage
+                    wallet={wallet}
+                  />
+                )
+              )}
+
+              {activePage === 'anchor' && (
+                <AnchorPage
+                  onAddClaim={handleAddClaim}
+                  walletBalanceUSDC={wallet.balanceUSDC}
                   wallet={wallet}
                 />
-              )
-            )}
+              )}
 
-            {activePage === 'anchor' && (
-              <AnchorPage
-                onAddClaim={handleAddClaim}
-                walletBalanceUSDC={wallet.balanceUSDC}
-                wallet={wallet}
-              />
-            )}
+              {activePage === 'leaderboard' && (
+                isLoading ? (
+                  <LeaderboardSkeleton />
+                ) : (
+                  <LeaderboardPage />
+                )
+              )}
 
-            {activePage === 'leaderboard' && (
-              isLoading ? (
-                <LeaderboardSkeleton />
-              ) : (
-                <LeaderboardPage />
-              )
-            )}
-
-            {activePage === 'profile' && (
-              isLoading ? (
-                <ProfileSkeleton />
-              ) : (
-                <ProfilePage
-                  wallet={wallet}
-                  googleUser={googleUser}
-                  claims={claimsList}
-                  onSelectClaim={handleSelectClaim}
-                  onSignOut={handleSignOut}
-                />
-              )
-            )}
-          </div>
+              {activePage === 'profile' && (
+                isLoading ? (
+                  <ProfileSkeleton />
+                ) : (
+                  <ProfilePage
+                    wallet={wallet}
+                    googleUser={googleUser}
+                    claims={claimsList}
+                    onSelectClaim={handleSelectClaim}
+                    onSignOut={handleSignOut}
+                  />
+                )
+              )}
+            </motion.div>
+          </AnimatePresence>
         )}
       </main>
 
