@@ -26,7 +26,8 @@ import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
 function encodeCalldata(selector: string, targetAddress: string, amountUnits: string | number): string {
   const cleanAddr = targetAddress.startsWith('0x') ? targetAddress.slice(2) : targetAddress;
   const paddedAddr = cleanAddr.toLowerCase().padStart(64, '0');
-  const bigAmt = BigInt(amountUnits);
+  // Guard against fractional numbers (float imprecision) reaching BigInt(), which throws on non-integers.
+  const bigAmt = typeof amountUnits === 'number' ? BigInt(Math.round(amountUnits)) : BigInt(amountUnits);
   const paddedAmt = bigAmt.toString(16).padStart(64, '0');
   return selector + paddedAddr + paddedAmt;
 }
@@ -289,9 +290,9 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         address: wallet?.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4',
         treasury_address: '0x32353da725814b01a90db31e08e025f4a1b2c3d4',
         mock_usdc_address: '0x12353da725814b01a90db31e08e025f4a1b2c3d4',
-        balance_units: (walletBalanceUSDC * 1000000) || 12000000,
-        allowance_units: hasAll ? (stakeAmount * 1000000) : 0,
-        required_units: stakeAmount * 1000000,
+        balance_units: Math.round(walletBalanceUSDC * 1000000) || 12000000,
+        allowance_units: hasAll ? Math.round(stakeAmount * 1000000) : 0,
+        required_units: Math.round(stakeAmount * 1000000),
         balance_usdc: walletBalanceUSDC || 12,
         allowance_usdc: hasAll ? stakeAmount : 0,
         required_usdc: stakeAmount,

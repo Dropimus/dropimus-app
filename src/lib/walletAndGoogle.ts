@@ -53,7 +53,7 @@ export async function getAppKit() {
         icons: ['https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=150&q=80']
       },
       features: {
-        analytics: true,
+        analytics: false,
         email: false,
         socials: false,
       }
