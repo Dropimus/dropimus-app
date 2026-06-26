@@ -45,6 +45,11 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      // Vite 6 blocks requests whose Host header isn't localhost. Codespaces,
+      // Gitpod and other tunnels serve the app from a forwarded *.app.github.dev
+      // host, which otherwise renders a blank "Blocked request" page. Allow all
+      // hosts in dev so the forwarded preview URL works.
+      allowedHosts: true,
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:8000',
@@ -52,8 +57,14 @@ export default defineConfig(() => {
           secure: false, // Disables strict SSL check for self-signed development certificates on localhost
         }
       },
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      // HMR is disabled in AI Studio via DISABLE_HMR env var. In Codespaces the
+      // page is served over HTTPS on port 443, so the HMR socket must use wss:443
+      // or it silently fails to connect.
+      hmr: process.env.DISABLE_HMR === 'true'
+        ? false
+        : (process.env.CODESPACES === 'true'
+          ? { clientPort: 443, protocol: 'wss' }
+          : true),
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
