@@ -59,10 +59,10 @@ export default defineConfig(() => {
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var. In Codespaces the
       // page is served over HTTPS on port 443, so the HMR socket must use wss:443
-      // or it silently fails to connect.
+      // or it silently fails to connect and the client keeps trying to reload.
       hmr: process.env.DISABLE_HMR === 'true'
         ? false
-        : (process.env.CODESPACES === 'true'
+        : ((process.env.CODESPACES === 'true' || !!process.env.CODESPACE_NAME)
           ? { clientPort: 443, protocol: 'wss' }
           : true),
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
