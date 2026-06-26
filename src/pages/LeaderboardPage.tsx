@@ -123,7 +123,7 @@ export function LeaderboardPage() {
       }}
     >
       <div style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '14px 0 10px' }}>
-        PROTOCOL EXPERTS LEADERBOARD
+        CREDIBILITY LEADERBOARD
       </div>
 
       {isDesktop ? (
@@ -138,7 +138,7 @@ export function LeaderboardPage() {
           {/* Left Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ color: C.gold, fontSize: '10px', fontWeight: 800, fontFamily: FONTS.display, letterSpacing: '0.04em', textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Zap size={11} fill="currentColor" /> FORESIGHT SPECIALISTS
+              <Zap size={11} fill="currentColor" /> TOP BELIEVERS
             </div>
             {renderRankingList(foresightLeaders)}
           </div>
@@ -146,7 +146,7 @@ export function LeaderboardPage() {
           {/* Right Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ color: C.blueLight, fontSize: '10px', fontWeight: 800, fontFamily: FONTS.display, letterSpacing: '0.04em', textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Shield size={11} fill="currentColor" /> EVALUATION EXPERTS
+              <Shield size={11} fill="currentColor" /> TOP RESEARCHERS
             </div>
             {renderRankingList(evaluationLeaders)}
           </div>
@@ -181,7 +181,7 @@ export function LeaderboardPage() {
                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                }}
              >
-               Foresight Specialists
+               Top Believers
              </button>
              <button
                onClick={() => setActiveTab('evaluation')}
@@ -200,7 +200,7 @@ export function LeaderboardPage() {
                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                }}
              >
-               Evaluation Experts
+               Top Researchers
              </button>
            </div>
 

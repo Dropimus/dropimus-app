@@ -17,7 +17,7 @@ interface CourtPageProps {
   onMakeCall: (claim: Claim) => void;
 }
 
-type Filter = 'All' | 'Crypto' | 'Airdrops' | 'Politics' | 'Sports' | 'Finance';
+type Filter = 'All' | 'Airdrops' | 'Accountability' | 'Security' | 'Projects' | 'Trust';
 type StatusFilter = 'all' | 'open' | 'resolved' | 'faded';
 type SortBy = 'newest' | 'stakes' | 'active';
 
@@ -31,12 +31,12 @@ interface TrendingTopic {
 }
 
 const TRENDING_TOPICS: TrendingTopic[] = [
-  { topic: 'Arbitrum Gas', category: 'Crypto', volume: '$1.4M', change: '+42%', isUp: true, count: 18 },
-  { topic: 'ZK Claim', category: 'Airdrops', volume: '$890k', change: '+128%', isUp: true, count: 32 },
-  { topic: 'USDC Vaults', category: 'Finance', volume: '$2.1M', change: '-5%', isUp: false, count: 14 },
-  { topic: 'ETH Pectra', category: 'Crypto', volume: '$3.4M', change: '+18%', isUp: true, count: 25 },
-  { topic: 'Consensus Rate', category: 'Politics', volume: '$4.2M', change: '+94%', isUp: true, count: 47 },
-  { topic: 'Gold Medal', category: 'Sports', volume: '$620k', change: '+15%', isUp: true, count: 9 },
+  { topic: 'MegaETH Allocation', category: 'Airdrops', volume: '$1.4M', change: '+42%', isUp: true, count: 18 },
+  { topic: 'ZK Airdrop', category: 'Airdrops', volume: '$890k', change: '+128%', isUp: true, count: 32 },
+  { topic: 'Multisig Insiders', category: 'Security', volume: '$2.1M', change: '-5%', isUp: false, count: 14 },
+  { topic: 'LayerZero Season 2', category: 'Projects', volume: '$3.4M', change: '+18%', isUp: true, count: 25 },
+  { topic: 'Team Wallet Disclosure', category: 'Accountability', volume: '$4.2M', change: '+94%', isUp: true, count: 47 },
+  { topic: 'Bridge Solvency', category: 'Trust', volume: '$620k', change: '+15%', isUp: true, count: 9 },
 ];
 
 export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps) {
@@ -65,7 +65,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const categories: Filter[] = ['All', 'Crypto', 'Airdrops', 'Politics', 'Sports', 'Finance'];
+  const categories: Filter[] = ['All', 'Airdrops', 'Accountability', 'Security', 'Projects', 'Trust'];
 
   // Apply filters including full-text search query and status filtering
   const filteredClaims = claims.filter(c => {
@@ -172,7 +172,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
               margin: 0, 
               fontFamily: FONTS.display,
             }}>
-              Consensus Court
+              Live Claims
             </h1>
             <div style={{ 
               display: 'flex', 
@@ -189,7 +189,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
             </div>
           </div>
           <p style={{ fontSize: '10px', color: C.sub, margin: 0, opacity: 0.6, fontWeight: 500, letterSpacing: '-0.01em' }}>
-            Escrow-backed oracle marketplace & truth ledger.
+            The credibility market for crypto.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
 
           {/* Staked Rep block */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.5, fontWeight: 700, letterSpacing: '0.08em', fontFamily: FONTS.mono }}>TOTAL REP</span>
+            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.5, fontWeight: 700, letterSpacing: '0.08em', fontFamily: FONTS.mono }}>HONOR</span>
             <span style={{ fontSize: '13px', color: '#0284C7', fontWeight: 800, fontFamily: FONTS.mono, letterSpacing: '-0.02em' }}>
               {formatRep(totalHonorStaked)}
             </span>
@@ -228,11 +228,11 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
 
           {/* Escrow pool block */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.5, fontWeight: 700, letterSpacing: '0.08em', fontFamily: FONTS.mono }}>ESCROW TVL</span>
+            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.5, fontWeight: 700, letterSpacing: '0.08em', fontFamily: FONTS.mono }}>CONVICTION</span>
             <span style={{ fontSize: '13px', color: '#D97706', fontWeight: 800, fontFamily: FONTS.mono, letterSpacing: '-0.02em' }}>
               ${formatRep(totalUSDCLocked)}
             </span>
-            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.4, fontWeight: 650 }}>USDC</span>
+            <span style={{ fontSize: '8px', color: C.sub, opacity: 0.4, fontWeight: 650 }}>dUSD</span>
           </div>
         </div>
       </div>
@@ -299,8 +299,8 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
               }}
             >
               <option value="all" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>All States</option>
-              <option value="open" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Open</option>
-              <option value="resolved" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Resolved</option>
+              <option value="open" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Active</option>
+              <option value="resolved" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Proven</option>
               <option value="faded" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Faded</option>
             </select>
             <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '7px', opacity: 0.5, color: C.text }}>▼</div>
@@ -575,19 +575,19 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
           {claims.length === 0 ? (
             <>
               <h3 style={{ fontFamily: FONTS.display, fontSize: '15px', fontWeight: 700, color: C.text, margin: 0 }}>
-                No Wallet Claims Synched
+                No claims yet
               </h3>
               <p style={{ fontSize: '12px', fontFamily: FONTS.body, maxWidth: '380px', margin: '0 auto', color: C.sub, lineHeight: '1.5' }}>
-                There are currently 0 consensus claims registered on the Dropimus network API. Connect your wallet or anchor a new claim above to resolve the first state.
+                No claims have been anchored yet. Connect your wallet and anchor the first claim for the community to evaluate.
               </p>
             </>
           ) : (
             <>
               <h3 style={{ fontFamily: FONTS.display, fontSize: '15px', fontWeight: 700, color: C.text, margin: 0 }}>
-                No Matches Found
+                No claims match
               </h3>
               <p style={{ fontSize: '12px', fontFamily: FONTS.body, maxWidth: '380px', margin: '0 auto', color: C.sub, lineHeight: '1.5' }}>
-                We couldn't find any consensus claims matching your selected search query or category filter. Try loosening your parameters.
+                No claims match your search or category filter. Try loosening your parameters.
               </p>
             </>
           )}

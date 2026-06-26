@@ -43,10 +43,10 @@ const CustomTooltip = ({ active, payload }: any) => {
       }}>
         <div style={{ color: C.sub, marginBottom: '2px' }}>{data.epoch}</div>
         <div style={{ fontWeight: 800, color: data.color }}>
-          PROVEN: {payload[0].value}% Consensus
+          Believe: {payload[0].value}% Consensus
         </div>
         <div style={{ color: C.sub, fontSize: '10px' }}>
-          Confidence Ratio: {payload[0].value}% / {100 - payload[0].value}%
+          Conviction Ratio: {payload[0].value}% / {100 - payload[0].value}%
         </div>
       </div>
     );
@@ -811,7 +811,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              PROVEN CONFIDENCE TREND LINE
+              BELIEVE CONVICTION TREND
             </span>
             <span style={{ fontSize: '11px', color: C.sub }}>
               Historical reputation stake weight shifts over epoch blocks
@@ -874,11 +874,11 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${C.border}`, fontSize: '10px', fontFamily: FONTS.mono, color: C.sub }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} /> 
-            PROVEN: Consensus High
+            Believe: Consensus High
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.faded, display: 'inline-block' }} /> 
-            FADED: Opinion Dropping
+            Doubt: Opinion Dropping
           </span>
           <span>ORACLE FREQUENCY: EPOCH</span>
          </div>
@@ -956,7 +956,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
               style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               onClick={() => setMakeCallExpanded(true)}
             >
-              <Zap size={14} fill="currentColor" /> Stake Rep & Call Settlement Outcome
+              <Zap size={14} fill="currentColor" /> Take Your Position
             </Btn>
           ) : (
             <div
@@ -970,7 +970,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <span style={{ color: C.text, fontFamily: FONTS.display, fontSize: '15px', fontWeight: 700 }}>
-                  Make on-chain Evaluation Call
+                  Take Your Position
                 </span>
                 <span
                   onClick={() => setMakeCallExpanded(false)}
@@ -998,7 +998,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 800, letterSpacing: '0.08em' }}>
-                    STEP 1: SELECT VERDICT (REQUIRED & STICKY)
+                    STEP 1: BELIEVE OR DOUBT (REQUIRED)
                   </span>
                   {!selectedSide && (
                     <span style={{ fontSize: '10px', color: '#EF4444', fontWeight: 700, animation: 'pulse 1.5s infinite', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1024,7 +1024,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       boxShadow: selectedSide === 'proven' ? '0 0 16px rgba(16, 185, 129, 0.25)' : 'none',
                     }}
                   >
-                    CALL PROVEN
+                    BELIEVE
                   </button>
                   <button
                     onClick={() => setSelectedSide('faded')}
@@ -1042,7 +1042,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       boxShadow: selectedSide === 'faded' ? '0 0 16px rgba(217, 48, 80, 0.25)' : 'none',
                     }}
                   >
-                    CALL FADED
+                    DOUBT
                   </button>
                 </div>
               </div>
@@ -1084,7 +1084,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                 {/* Capital stake presets */}
                 <div>
                   <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '6px' }}>
-                    USDC Collateral Stake (Minimum $5):
+                    Conviction amount (min $5 dUSD):
                   </label>
                   <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                     {[5, 20, 50, 100, 250].map((val) => {
@@ -1356,7 +1356,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                   }}
                 >
                   <AlertTriangle size={14} style={{ flexShrink: 0 }} />
-                  <span>STANCE REQUIRED: Scroll to Step 1 at the top of the panel and select CALL PROVEN or CALL FADED to proceed.</span>
+                  <span>POSITION REQUIRED: Scroll to Step 1 at the top of the panel and choose BELIEVE or DOUBT to continue.</span>
                 </div>
               )}
 
@@ -1796,7 +1796,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                         {['sign', 'complete'].includes(signingStage) ? '✓' : ['idle', 'approve'].includes(signingStage) ? '' : '●'}
                       </div>
                       <span style={{ color: signingStage === 'deposit' ? C.text : ['idle', 'approve'].includes(signingStage) ? C.sub : C.text, fontWeight: signingStage === 'deposit' ? 700 : 500 }}>
-                        Collateral Stake escrow deposit
+                        Conviction escrow deposit
                       </span>
                     </div>
 
@@ -1882,7 +1882,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Confirm & Stake USDC
+                    Confirm Position
                   </button>
                 </div>
               ) : (

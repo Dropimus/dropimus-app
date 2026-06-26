@@ -7,12 +7,12 @@ export const TIER = {
 };
 
 export const CAT_COLORS = {
-  Crypto:   { bg: "#050F1F", text: "#4D7AFF" },
-  Airdrops: { bg: "#051A0E", text: "#3DBA6F" },
-  Politics: { bg: "#110820", text: "#9B6FD8" },
-  Sports:   { bg: "#1A0A05", text: "#D4703A" },
-  Finance:  { bg: "#051A18", text: "#2AC4B3" },
-  Other:    { bg: "#0F0F1A", text: "#4A4A6A" },
+  Airdrops:       { bg: "#051A0E", text: "#3DBA6F" },
+  Accountability: { bg: "#050F1F", text: "#4D7AFF" },
+  Security:       { bg: "#1A0A05", text: "#D4703A" },
+  Projects:       { bg: "#110820", text: "#9B6FD8" },
+  Trust:          { bg: "#1F0A0A", text: "#E0556E" },
+  Other:          { bg: "#0F0F1A", text: "#4A4A6A" },
 };
 
 // Claim types for the Anchor constraint engine

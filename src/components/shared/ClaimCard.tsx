@@ -125,7 +125,7 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
             }}
           >
             <span style={{ fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.08em' }}>
-              CAPITAL LOCKED
+              CONVICTION
             </span>
             <span style={{ fontFamily: FONTS.mono, color: C.goldBright, fontSize: '13px', fontWeight: 700 }}>
               {formattedCapital}
@@ -145,14 +145,14 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
             }}
           >
             <span style={{ fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.08em' }}>
-              HONOR WEIGHT
+              HONOR
             </span>
             <span style={{ fontFamily: FONTS.mono, color: C.blueLight, fontSize: '13px', fontWeight: 700 }}>
               {formattedHonor}
             </span>
           </div>
 
-          {/* Box 3: Call counts */}
+          {/* Box 3: Position counts */}
           <div
             style={{
               padding: '6px 10px',
@@ -164,7 +164,7 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
             }}
           >
             <span style={{ fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.08em' }}>
-              CALLERS COHORT
+              POSITIONS
             </span>
             <span style={{ fontFamily: FONTS.mono, color: C.text, fontSize: '13px', fontWeight: 700 }}>
               {claim.callers}
@@ -182,14 +182,14 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
               style={{ flex: 1, padding: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               onClick={() => onMakeCallClick(claim)}
             >
-              <Zap size={13} fill="currentColor" /> Make a Call
+              <Zap size={13} fill="currentColor" /> Take Position
             </Btn>
             <Btn
               variant="secondary"
               style={{ flex: 1, padding: '9px' }}
               onClick={() => onSelect(claim)}
             >
-              View Analysis →
+              View Claim →
             </Btn>
           </>
         ) : claim.status === 'dead_zone' ? (
@@ -202,13 +202,13 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
               textAlign: 'center',
               border: `1px solid ${C.border}`,
               fontSize: '12px',
-              color: '#3A3A5A',
+              color: C.sub,
               fontWeight: 700,
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
             }}
           >
-            Locked in Dead Zone · Verification is SettlePending
+            Unresolved · Conviction Returned
           </div>
         ) : (
           <div
@@ -223,10 +223,10 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
               fontFamily: FONTS.display,
               color: claim.status === 'proven' ? C.blueBright : C.fadedBright,
               fontWeight: 800,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.08em',
             }}
           >
-            PROTOCOL OUTCOME: {claim.status.toUpperCase()}
+            Outcome: {claim.status === 'proven' ? 'Proven ✓' : 'Faded ✗'}
           </div>
         )}
       </div>
