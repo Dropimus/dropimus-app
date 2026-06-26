@@ -202,7 +202,7 @@ export function SentimentOrb({ proven = 50, faded = 50, size = 88, animate = tru
       ctx.font = `700 ${Math.round(size * 0.08)}px 'Inter', sans-serif`;
       ctx.letterSpacing = '0.08em';
       ctx.fillText(
-        provenLeads ? 'PROVEN' : 'FADED',
+        provenLeads ? 'BELIEVE' : 'DOUBT',
         cx,
         cy + size * 0.14
       );

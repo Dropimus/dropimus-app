@@ -126,7 +126,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
           }}
         >
           {([
-            { id: 'court', label: 'Court', icon: IconCourt },
+            { id: 'court', label: 'Claims', icon: IconCourt },
             { id: 'honor', label: 'Honor', icon: IconHonor },
             { id: 'anchor', label: 'Anchor', icon: IconAnchor },
             { id: 'leaderboard', label: 'Ranks', icon: IconRank },

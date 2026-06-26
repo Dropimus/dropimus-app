@@ -84,7 +84,7 @@ export function BottomNav({ activePage, setActivePage, onClearSelectedClaim }: B
             fontFamily: FONTS.body,
           }}
         >
-          Court
+          Claims
         </span>
       </div>
 

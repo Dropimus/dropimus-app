@@ -238,7 +238,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', width: '100%' }}>
               <div style={{ background: C.elevated, borderRadius: '12px', padding: '12px 8px', border: '1px solid rgba(255,255,255,0.02)' }}>
                 <span style={{ display: 'block', fontSize: '9px', color: C.sub, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '4px' }}>
-                  ANCHORED IN
+                  CLAIMS ANCHORED
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.text, fontFamily: FONTS.display }}>
                   {claims.filter((c) => c.anchorer === wallet.address).length}
@@ -247,7 +247,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
               <div style={{ background: C.elevated, borderRadius: '12px', padding: '12px 8px', border: '1px solid rgba(255,255,255,0.02)' }}>
                 <span style={{ display: 'block', fontSize: '9px', color: C.sub, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '4px' }}>
-                  OUTCOMES PROVEN
+                  PROVEN
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.blueLight, fontFamily: FONTS.display }}>
                   {claims.filter((c) => c.status === 'proven').length}
@@ -256,7 +256,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
               <div style={{ background: C.elevated, borderRadius: '12px', padding: '12px 8px', border: '1px solid rgba(255,255,255,0.02)' }}>
                 <span style={{ display: 'block', fontSize: '9px', color: C.sub, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '4px' }}>
-                  SETTLE ACCURACY
+                  ACCURACY
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.goldBright, fontFamily: FONTS.display }}>
                   87.5%
@@ -402,11 +402,11 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {interactions.map((tx) => {
                   // Setup dynamic visualization attributes depending on interaction type
-                  const labelType = tx.type === 'anchor' 
-                    ? 'Anchor Genesis' 
-                    : tx.type === 'stake_proven' 
-                      ? 'Staked Proven' 
-                      : 'Staked Faded';
+                  const labelType = tx.type === 'anchor'
+                    ? 'Anchored Claim'
+                    : tx.type === 'stake_proven'
+                      ? 'Believed'
+                      : 'Doubted';
                   
                   const isAnchor = tx.type === 'anchor';
                   const isProven = tx.type === 'stake_proven';

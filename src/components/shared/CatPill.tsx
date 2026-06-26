@@ -6,15 +6,15 @@
 import React from 'react';
 import { CAT_COLORS } from '../../data';
 import { FONTS } from '../../tokens';
-import { Coins, Landmark, Trophy, TrendingUp, Folder } from 'lucide-react';
+import { Folder, Shield, Rocket, AlertTriangle, ClipboardList } from 'lucide-react';
 import { IconParachute } from '../icons';
 
 const CAT_ICONS: Record<string, React.ComponentType<any>> = {
-  Crypto: Coins,
   Airdrops: IconParachute,
-  Politics: Landmark,
-  Sports: Trophy,
-  Finance: TrendingUp,
+  Accountability: ClipboardList,
+  Security: Shield,
+  Projects: Rocket,
+  Trust: AlertTriangle,
   Other: Folder,
 };
 

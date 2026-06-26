@@ -106,7 +106,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             Wallet Connection Required
           </h2>
           <p style={{ color: C.sub, fontSize: '12px', marginBottom: '24px', lineHeight: '1.5' }}>
-            To anchor a prediction parameter on the Base consensus court, you must have an active Web3 wallet connected. The Google pathway is for read-only tracking and requires a linked wallet for consensus voting.
+            To anchor a claim on Base, you need a connected wallet. Google sign-in is for read-only tracking — link a wallet to take positions.
           </p>
           <Btn
             variant="primary"

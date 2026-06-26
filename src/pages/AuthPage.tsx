@@ -435,13 +435,13 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
 
           <div className="text-center max-w-sm">
             <span className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-[0.25em] font-mono block mb-2 px-3 py-1 bg-white/[0.02] border border-white/5 rounded-full inline-block">
-              Sovereign Truth Engine
+              The Credibility Market
             </span>
             <h2 className="text-2xl font-black text-white tracking-tight leading-tight mt-2" style={{ fontFamily: FONTS.display }}>
-              Anchored Reputational Consensus
+              Put conviction behind what you believe
             </h2>
             <p className="text-zinc-400 text-xs leading-relaxed mt-3 px-4">
-              Secure evaluation consensus wallets. Leverage verified cryptographic models on the Base Sepolia ledger and earn dual rewards.
+              Anchor a claim, take a position, and let resolution decide. Being right earns honor — your credibility, on Base.
             </p>
           </div>
         </div>
@@ -514,7 +514,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
                 id="auth-intro-desc"
                 className="text-zinc-400 text-sm leading-relaxed max-w-[19rem] mx-auto"
               >
-                Sign in to the consensus court with your Web3 wallet or Google account.
+                Sign in to the credibility market with your wallet or Google account.
               </p>
             </div>
 
