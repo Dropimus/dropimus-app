@@ -22,6 +22,7 @@ import { CLAIM_TYPES, METRICS, RELATIVE_WINDOWS, PROOF_TYPES } from '../data';
 import Btn from '../components/shared/Btn';
 import DropimusProtocolAPI, { Claim, getAppKit } from '../lib/walletAndGoogle';
 import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
+import { API_BASE } from '../lib/apiBase';
 
 function encodeCalldata(selector: string, targetAddress: string, amountUnits: string | number): string {
   const cleanAddr = targetAddress.startsWith('0x') ? targetAddress.slice(2) : targetAddress;
@@ -254,7 +255,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
     const isMintedLocally = localStorage.getItem('dropimus_local_minted_dusd') === 'true';
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
-      const res = await fetch(`${window.location.origin}/api/claims/preflight?amount=${stakeAmount}`, {
+      const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${stakeAmount}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -402,7 +403,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
 
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
-      const preflightRes = await fetch(`${window.location.origin}/api/claims/preflight?amount=${capitalStake}`, {
+      const preflightRes = await fetch(`${API_BASE}/api/claims/preflight?amount=${capitalStake}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
