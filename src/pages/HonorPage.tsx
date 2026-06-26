@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, Shield, Settings, Scale, Link, AlertTriangle, Coins, TrendingUp, ChevronUp, ChevronDown, Award, Landmark, Trophy, Folder, Lock, CheckCircle2, RefreshCw, HelpCircle } from 'lucide-react';
 import { C, FONTS } from '../tokens';
+import { API_BASE } from '../lib/apiBase';
 import { IconParachute } from '../components/icons';
 import HonorRing from '../components/shared/HonorRing';
 import { Wallet } from '../lib/walletAndGoogle';
@@ -28,7 +29,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
       const token = localStorage.getItem('dropimus_jwt_access_token');
       setLoadingUsage(true);
       try {
-        const res = await fetch(`${window.location.origin}/api/me/usage`, {
+        const res = await fetch(`${API_BASE}/api/me/usage`, {
           headers: {
             'Authorization': `Bearer ${token || ''}`
           }

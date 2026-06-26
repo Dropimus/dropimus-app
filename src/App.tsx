@@ -19,6 +19,7 @@ import { DropimusAPI } from './lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkeleton } from './components/shared/SkeletonLoader';
 import { getCachedClaims, saveClaimsToCache } from './lib/claimsCache';
+import { API_BASE } from './lib/apiBase';
 
 // Memoized Liquid-morphism ambient background blobs with organic breathing animations
 const AmbientBackground = React.memo(({ activePage }: { activePage: string }) => {
@@ -219,7 +220,7 @@ export default function App() {
       try {
         const [meRes, usageRes] = await Promise.all([
           DropimusAPI.getCurrentUser(token),
-          fetch(`${window.location.origin}/api/me/usage`, {
+          fetch(`${API_BASE}/api/me/usage`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -383,7 +384,7 @@ export default function App() {
         window.history.replaceState({}, document.title, window.location.pathname);
         
         try {
-          const res = await fetch(`${window.location.origin}/api/auth/exchange?token=${encodeURIComponent(sessionToken)}`);
+          const res = await fetch(`${API_BASE}/api/auth/exchange?token=${encodeURIComponent(sessionToken)}`);
           if (res.ok) {
             const exchangeData = await res.json();
             if (exchangeData.ok && exchangeData.user) {
@@ -438,7 +439,7 @@ export default function App() {
         // Check backend session validity in backchannel
         if (cachedWallet.connected || cachedGoogleUser.loggedIn) {
           try {
-            const statusRes = await fetch(`${window.location.origin}/api/auth/status`);
+            const statusRes = await fetch(`${API_BASE}/api/auth/status`);
             if (statusRes.ok) {
               const sData = await statusRes.json();
               if (sData.authenticated && sData.user) {
@@ -495,7 +496,7 @@ export default function App() {
 
     const pingInterval = setInterval(async () => {
       try {
-        const res = await fetch(`${window.location.origin}/api/auth/status`);
+        const res = await fetch(`${API_BASE}/api/auth/status`);
         if (res.ok) {
           const sData = await res.json();
           if (!sData.authenticated) {
@@ -540,7 +541,7 @@ export default function App() {
   };
 
   const handleSignOut = () => {
-    fetch(`${window.location.origin}/api/auth/logout`, { method: 'POST' }).catch(() => {});
+    fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' }).catch(() => {});
     localStorage.removeItem('dropimus_jwt_access_token');
     localStorage.removeItem('dropimus_jwt_refresh_token');
     localStorage.removeItem('dropimus_local_approved_treasury');

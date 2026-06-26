@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { C, FONTS } from '../../tokens';
 import { LogoWordmark, IconHonor, IconCourt, IconAnchor, IconRank, IconProfile } from '../icons';
 import DropimusProtocolAPI, { GoogleUser, Wallet } from '../../lib/walletAndGoogle';
+import { API_BASE } from '../../lib/apiBase';
 import { Btn } from '../shared/Btn';
 interface TopBarProps {
   wallet: Wallet;
@@ -55,7 +56,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
       DropimusProtocolAPI.logoutWithGoogle();
       onUpdate();
     } else {
-      fetch(`${window.location.origin}/api/auth/google/login`)
+      fetch(`${API_BASE}/api/auth/google/login`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();

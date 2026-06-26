@@ -8,6 +8,8 @@
  * Mirrors the exact Python test script endpoints.
  */
 
+import { API_BASE } from './apiBase';
+
 export interface NonceResponse {
   success: boolean;
   data?: {
@@ -51,8 +53,8 @@ export interface AnchorPayload {
 
 export class DropimusAPI {
   private static getBaseUrl(): string {
-    // Falls back to development app base if set or local
-    return window.location.origin;
+    // Central API base (https://api.dropimus.com by default; override via VITE_API_BASE_URL).
+    return API_BASE;
   }
 
   /**
@@ -631,7 +633,7 @@ export async function signUSDCApprovalAndDeposit(
 
     try {
       if (accessToken) {
-        const res = await fetch(`${window.location.origin}/api/claims/preflight?amount=${usdcAmount}`, {
+        const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${usdcAmount}`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
           }

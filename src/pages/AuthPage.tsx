@@ -30,6 +30,7 @@ import { DropimusAPI } from '../lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { TermsPage } from './TermsPage';
 import { prefetchActiveClaims } from '../lib/claimsCache';
+import { API_BASE } from '../lib/apiBase';
 import dlogo from '../assets/images/dlogo.png';
 
 interface AuthPageProps {
@@ -290,7 +291,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
     setIsGoogleLoading(true);
     setGoogleAuthError(null);
     try {
-      const res = await fetch(`${window.location.origin}/api/auth/google/login`);
+      const res = await fetch(`${API_BASE}/api/auth/google/login`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.redirect_url) {
