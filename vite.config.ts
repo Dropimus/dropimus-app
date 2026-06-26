@@ -52,7 +52,10 @@ export default defineConfig(() => {
       allowedHosts: true,
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:8000',
+          // Default to uvicorn on :8000. If the backend runs behind nginx
+          // (e.g. docker compose exposing 80/443 but not 8000), set
+          // VITE_API_PROXY_TARGET=http://127.0.0.1  (or https://127.0.0.1).
+          target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000',
           changeOrigin: true,
           secure: false, // Disables strict SSL check for self-signed development certificates on localhost
         }
