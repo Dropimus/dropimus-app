@@ -239,7 +239,7 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
         {/* Google & Web3 Interactive Dropdown Menu in standard clean premium style */}
         {dropdownOpen && (
           <div
-            className="glassmorphic animate-fadeUp"
+            className="animate-fadeUp"
             style={{
               position: 'fixed',
               top: `${dropdownCoords.top}px`,
@@ -253,6 +253,12 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
               flexDirection: 'column',
               gap: '16px',
               zIndex: 101,
+              // Dense frosted backplate so dashboard content never bleeds through.
+              background: 'rgba(12, 12, 14, 0.92)',
+              backdropFilter: 'blur(28px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+              border: '1px solid rgba(255, 255, 255, 0.10)',
+              boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)',
             }}
           >
             {/* Header: Identity */}
