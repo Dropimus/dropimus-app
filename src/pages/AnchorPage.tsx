@@ -56,7 +56,6 @@ const CATEGORIES = [
   { id: 'Security', label: 'Security', icon: Shield },
   { id: 'Projects', label: 'Projects', icon: Rocket },
   { id: 'Trust', label: 'Trust', icon: AlertTriangle },
-  { id: 'Other', label: 'Other', icon: Folder },
 ];
 
 interface AnchorPageProps {
@@ -399,7 +398,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
     }
 
     setSigningStage('approve');
-    setSigningMessage('Double checking asset lock status on Base consensus contract...');
+    setSigningMessage('Checking your dUSD balance and allowance on Base...');
 
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
@@ -441,7 +440,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
       }
 
       setSigningStage('sign');
-      setSigningMessage('Registering anchor parameters with the Base Consensus court... Please review authorization header.');
+      setSigningMessage('Anchoring your claim on Base... please review the signature request.');
 
       const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
       if (!accessToken) {
@@ -517,7 +516,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
 
       onAddClaim(newlyCreatedClaim);
       setSigningStage('complete');
-      setSigningMessage('Consensus parameters anchored successfully! Vault collateral locked.');
+      setSigningMessage('Your claim is anchored. Bond locked in escrow.');
       setSubmitted(true);
 
     } catch (err: any) {
@@ -725,7 +724,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
           Anchor a Claim
         </h1>
         <span style={{ fontSize: '10px', color: C.sub, letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase' }}>
-          Constraint Engine v1
+          Credibility Market
         </span>
       </div>
 
@@ -817,7 +816,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             <div className="flex items-center gap-2 mb-3">
               <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">1</span>
               <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
-                Select Foresight Format
+                Choose a Claim Type
               </div>
             </div>
             
@@ -891,7 +890,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             <div className="flex items-center gap-2 mb-3">
               <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">2</span>
               <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
-                Enter Foresight Subject
+                What's the Claim About?
               </div>
             </div>
 
@@ -950,7 +949,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <label style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em' }}>
-                      ASSET OR DATA SUBJECT
+                      SUBJECT
                     </label>
                     <span style={{ fontSize: '9px', color: C.sub, fontFamily: FONTS.mono }}>
                       {subject.length}/48 LIMIT
@@ -1010,7 +1009,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             <p className="text-[10px] text-zinc-500 pl-1 mt-2 font-mono">
               💡 {claimType === 'comparative' 
                 ? "Type the two assets you wish to put in head-to-head comparison." 
-                : "Type the asset or variable protocol address you want to anchor consensus results for."}
+                : "Type the asset, project, or topic your claim is about."}
             </p>
           </div>
 
@@ -1019,7 +1018,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
             <div className="flex items-center gap-2 mb-3">
               <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-[11px] font-mono font-extrabold">3</span>
               <div className="text-zinc-200 text-xs font-mono font-extrabold uppercase tracking-wider">
-                Choose Domain Category
+                Choose a Category
               </div>
             </div>
 
@@ -1062,19 +1061,19 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
               <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3 flex gap-2.5 items-start">
                 <span className="text-emerald-400 text-xs text-center leading-none mt-0.5">✓</span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-emerald-300">Subject successfully validated</span>
-                  <span className="text-[10px] text-zinc-400 font-mono mt-0.5">Ready to lock parameters and define the metrics engine.</span>
+                  <span className="text-xs font-bold text-emerald-300">Subject looks good</span>
+                  <span className="text-[10px] text-zinc-400 font-mono mt-0.5">Ready to set how this claim resolves.</span>
                 </div>
               </div>
             ) : (
               <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl p-3 flex gap-2.5 items-start">
                 <span className="text-amber-400 text-xs text-center leading-none mt-0.5">⚠️</span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-amber-300">Awaiting Foresight Subject</span>
+                  <span className="text-xs font-bold text-amber-300">Add a subject to continue</span>
                   <span className="text-[10px] text-zinc-400 font-mono mt-0.5">
                     {claimType === 'comparative' 
                       ? "Please enter both Asset A and Asset B (> 3 chars each) to enable step progress."
-                      : "Please type the target subject or select one of the Quick Picks to enable step progress."
+                      : "Type a subject or pick one below to continue."
                     }
                   </span>
                 </div>
@@ -1090,7 +1089,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                 boxShadow: (subject.trim().length >= 3 && (claimType !== 'comparative' || subjectB.trim().length >= 3)) ? '0 4px 15px rgba(0, 82, 255, 0.3)' : 'none',
               }}
             >
-              Define Verification Metric →
+              Next: How It Resolves →
             </Btn>
           </div>
         </div>
@@ -1406,7 +1405,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                           2. Treasury Escrow Spend Allowance
                         </span>
                         <span style={{ fontSize: '11px', color: C.sub, marginTop: '2px', lineHeight: '1.4' }}>
-                          Authorize Dropimus consensus contracts to secure your ${capitalStake} DUSD collateral inside the escrow court.
+                          Approve the Dropimus contracts to lock your ${capitalStake} dUSD bond in escrow.
                         </span>
                         {!preflightData?.has_allowance && (
                           <div style={{ marginTop: '10px' }}>
@@ -1762,7 +1761,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                   VALIDATION SYSTEM BLOCKED
                 </span>
                 <span style={{ fontSize: '11px', color: C.fadedBright, opacity: 0.85, marginTop: '2px' }}>
-                  One or more parameters failed clinical protocol constraints. Please modify your metrics or expiry schedules.
+                  Some details don't meet the requirements. Adjust your metric or resolution date.
                 </span>
               </div>
             </div>

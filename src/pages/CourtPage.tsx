@@ -5,11 +5,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Search, Globe, Coins, Landmark, Trophy, TrendingUp, Folder, Flame, Activity } from 'lucide-react';
+import { Search, Folder, Flame, Activity, Shield, Rocket, AlertTriangle, ClipboardList, LayoutGrid } from 'lucide-react';
 import { C, FONTS } from '../tokens';
 import ClaimCard from '../components/shared/ClaimCard';
 import { Claim } from '../lib/walletAndGoogle';
 import { IconParachute } from '../components/icons';
+
+// Icons for the category filter tabs (mirrors the CatPill mapping).
+const CAT_ICON: Record<string, React.ComponentType<any>> = {
+  All: LayoutGrid,
+  Airdrops: IconParachute,
+  Accountability: ClipboardList,
+  Security: Shield,
+  Projects: Rocket,
+  Trust: AlertTriangle,
+};
 
 interface CourtPageProps {
   claims: Claim[];
@@ -252,6 +262,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {categories.map((cat) => {
             const isSelected = activeFilter === cat;
+            const Icon = CAT_ICON[cat];
             return (
               <button
                 key={cat}
@@ -261,15 +272,19 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
                   border: isSelected ? `1px solid ${C.border2}` : '1px solid transparent',
                   color: isSelected ? C.text : C.sub,
                   borderRadius: '6px',
-                  padding: '3px 8px',
+                  padding: '3px 9px',
                   fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: FONTS.body,
                   whiteSpace: 'nowrap',
                   transition: 'all 0.12s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
                 }}
               >
+                {Icon && <Icon size={12} strokeWidth={2.4} />}
                 {cat}
               </button>
             );
