@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, Coins, Landmark, Trophy, TrendingUp, Folder, Calendar, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
+import { Lock, Folder, Calendar, AlertTriangle, Zap, CheckCircle2, Shield, Rocket, ClipboardList } from 'lucide-react';
 import { C, FONTS } from '../tokens';
 import { TermTooltip } from '../components/shared/TermTooltip';
 import {
@@ -52,10 +52,10 @@ function sanitizeEtherAddress(addr: string | null | undefined, fallback: string)
 
 const CATEGORIES = [
   { id: 'Airdrops', label: 'Airdrops', icon: IconParachute },
-  { id: 'Crypto', label: 'Crypto', icon: Coins },
-  { id: 'Politics', label: 'Politics', icon: Landmark },
-  { id: 'Sports', label: 'Sports', icon: Trophy },
-  { id: 'Finance', label: 'Finance', icon: TrendingUp },
+  { id: 'Accountability', label: 'Accountability', icon: ClipboardList },
+  { id: 'Security', label: 'Security', icon: Shield },
+  { id: 'Projects', label: 'Projects', icon: Rocket },
+  { id: 'Trust', label: 'Trust', icon: AlertTriangle },
   { id: 'Other', label: 'Other', icon: Folder },
 ];
 
@@ -135,7 +135,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
   const [claimType, setClaimType] = useState<string>('binary');
   const [subject, setSubject] = useState<string>('');
   const [subjectB, setSubjectB] = useState<string>(''); // comparative special second input
-  const [selectedCategory, setSelectedCategory] = useState<string>('Crypto');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Airdrops');
 
   // Step 2: Metric & Data locks
   const [selectedMetricId, setSelectedMetricId] = useState<string>('price');

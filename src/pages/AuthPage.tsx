@@ -361,7 +361,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
               DROPIMUS
             </span>
             <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase block">
-              Consortium Court v1.2.6
+              Credibility Market
             </span>
           </div>
         </div>
@@ -446,15 +446,27 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
           </div>
         </div>
 
-        {/* Footer section: Ticking consensus activities log */}
+        {/* Footer section: How the credibility market works */}
         <div className="relative z-10 w-full">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 tracking-wider font-mono mb-2">
-            <Terminal size={12} className="text-zinc-500" />
-            CONCORDANCE STREAM LIVE
+          <div className="flex flex-col gap-3.5">
+            {[
+              { Icon: Scale, title: 'Anchor a claim', body: 'Put a testable claim on-chain for the community to evaluate.' },
+              { Icon: Fingerprint, title: 'Take a position', body: 'Believe or doubt — back your conviction with dUSD.' },
+              { Icon: Shield, title: 'Earn honor', body: 'Being right builds credibility. It can never be bought or transferred.' },
+            ].map(({ Icon, title, body }) => (
+              <div key={title} className="flex items-start gap-3">
+                <div className="mt-0.5 w-8 h-8 shrink-0 rounded-xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
+                  <Icon size={14} className="text-zinc-300" />
+                </div>
+                <div>
+                  <div className="text-[12px] font-bold text-zinc-200 leading-tight">{title}</div>
+                  <div className="text-[10.5px] text-zinc-500 leading-snug mt-0.5">{body}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          <TickerLogsTerminal />
-          <div className="mt-4 text-[9px] text-zinc-600 font-mono tracking-wide">
-            © 2026 DROPIMUS LABS • ALL REPUTATIONAL PROTOCOLS SECURED BY CONSENSUS DECAY
+          <div className="mt-7 text-[9px] text-zinc-600 font-mono tracking-wide">
+            © 2026 DROPIMUS · THE CREDIBILITY MARKET FOR CRYPTO
           </div>
         </div>
       </div>
@@ -732,62 +744,5 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
     </div>
   );
 }
-
-// Sub-component designed strictly for background running intervals
-// Resolves structural whole-page re-renders on every tick (rendering bypass)
-const TickerLogsTerminal = React.memo(() => {
-  const [tickerLogs, setTickerLogs] = useState<string[]>([
-    "Wallet consensus synched on block #4,892,109",
-    "Proof validated on claim #104: BTC/USDC above threshold",
-    "Consensus weight finalized with 142.50M Honor points",
-    "SIWE session assigned to validator 0xWozny...5f4",
-    "Validation lock engaged on claim #102"
-  ]);
-
-  useEffect(() => {
-    const messages = [
-      "Securing dual-staking assertion pool with 12,500 USDC...",
-      "Consensus finality resolved in < 2.3s on Base Sepolia.",
-      "Arbitrage resolution: Consensus accuracy threshold matched 87.5%",
-      "Consortia signature verified for Wallet #502",
-      "Analyzing forensic on-chain metrics stream...",
-      "Block #4,892,112 proposed: 489 claims active in verification queue.",
-      "Vanguard court lock updated: Current finality grade [A+]",
-      "Wallet consensus synched on block #4,892,114",
-      "Validator 0xTimCook...fa5 joined concordance pool",
-      "Validator 0xCraigF...a12 assigned as arbiter"
-    ];
-
-    const interval = setInterval(() => {
-      setTickerLogs(prev => {
-        const next = [...prev];
-        if (next.length > 5) next.shift();
-        const randMsg = messages[Math.floor(Math.random() * messages.length)];
-        next.push(randMsg);
-        return next;
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="bg-black/40 border border-white/[0.04] p-3 rounded-xl font-mono text-[9px] text-zinc-500 flex flex-col gap-1.5 h-[105px] overflow-hidden select-none">
-      {tickerLogs.map((log, index) => {
-        const isBlock = log.includes("block");
-        const isJoined = log.includes("joined") || log.includes("assigned");
-        return (
-          <div key={index} className="flex items-center gap-2 truncate animate-fadeIn">
-            <span className={`w-1 h-1 rounded-full ${isBlock ? 'bg-emerald-500' : isJoined ? 'bg-amber-400' : 'bg-zinc-500'}`} />
-            <span className={isBlock ? 'text-zinc-300' : isJoined ? 'text-amber-400/90' : 'text-zinc-400'}>
-              {log}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-});
-TickerLogsTerminal.displayName = 'TickerLogsTerminal';
 
 export default AuthPage;
