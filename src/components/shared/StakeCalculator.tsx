@@ -130,7 +130,7 @@ export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBal
             </span>
           </div>
           <p style={{ fontSize: '10.5px', color: C.sub, lineHeight: '1.4', margin: 0 }}>
-            Callers no longer choose their own Honor stake. To prevent strategic optimization and minimize game playing, the protocol automatically computes reputation delta at settlement: <code style={{ fontFamily: FONTS.mono, background: C.deep, padding: '1px 4px', borderRadius: '4px', color: C.blueLight }}>honor_delta = base_reward * (capital / avg_capital)</code>. Your reputation yields and decays scale directly with your actual monetary risk.
+            Participants no longer choose their own Honor stake. To prevent strategic optimization and minimize game playing, the protocol automatically computes Honor delta at resolution: <code style={{ fontFamily: FONTS.mono, background: C.deep, padding: '1px 4px', borderRadius: '4px', color: C.blueLight }}>honor_delta = base_reward * (conviction / avg_conviction)</code>. Your Honor gains and decays scale directly with your actual conviction.
           </p>
         </div>
 

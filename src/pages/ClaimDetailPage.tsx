@@ -1371,7 +1371,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                   boxShadow: `0 8px 24px ${selectedSide === 'faded' ? C.fadedGlow : C.blueGlow}`,
                 }}
               >
-                Submit Evaluation Call →
+                Take Position →
               </Btn>
             </div>
           )}

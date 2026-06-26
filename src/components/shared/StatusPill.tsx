@@ -27,7 +27,7 @@ export function StatusPill({ status, daysLeft = 0 }: StatusPillProps) {
       break;
 
     case 'pending_onchain':
-      label = 'PENDING ON-CHAIN';
+      label = 'ANCHORING…';
       color = C.goldBright;
       bg = C.goldDim;
       border = `1px solid ${C.gold}44`;
@@ -42,7 +42,7 @@ export function StatusPill({ status, daysLeft = 0 }: StatusPillProps) {
       break;
 
     case 'dead_zone':
-      label = 'DEAD ZONE';
+      label = 'UNRESOLVED';
       color = '#3A3A5A';
       bg = C.elevated;
       border = `1px solid ${C.border}`;
