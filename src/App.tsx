@@ -21,6 +21,71 @@ import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkele
 import { API_BASE } from './lib/apiBase';
 import { authFetch, onSessionExpired } from './lib/authClient';
 
+const num = (v: any): number | null => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+};
+
+const shortAddr = (a: string) =>
+  a && a.startsWith('0x') && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : (a || '');
+
+/**
+ * Map a backend claim (plain /claims or enriched /market/claims) into the UI
+ * Claim shape. Sentiment and attribution are read from real fields only — any
+ * missing value resolves to empty/zero, never fabricated.
+ */
+const mapBackendClaim = (c: any): Claim => {
+  const daysLeft = c.resolution_date
+    ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000))
+    : 0;
+
+  const rawCat = c.category || '';
+  const formattedCat = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase() : '';
+
+  // Real sentiment — market endpoint nests it under `market`, otherwise top-level.
+  const m = c.market || c;
+  const believe = num(m.believe_weight ?? m.proven_weight ?? m.yes_weight ?? m.believe ?? c.proven);
+  const doubt = num(m.doubt_weight ?? m.faded_weight ?? m.no_weight ?? m.doubt ?? c.faded);
+  const believePct = num(m.believe_pct ?? m.proven_pct ?? m.consensus_pct);
+  let proven = 0, faded = 0;
+  if (believe !== null && doubt !== null && believe + doubt > 0) {
+    proven = believe; faded = doubt;
+  } else if (believePct !== null) {
+    proven = believePct; faded = 100 - believePct;
+  }
+
+  const callers = num(m.total_calls ?? m.participant_count ?? m.callers ?? c.callers) ?? 0;
+  const capital = num(c.capital_staked ?? c.capital_stake ?? c.capital ?? m.total_capital) ?? 0;
+
+  const anchorerAddr = c.anchorer_address || c.anchorer || c.submitter_address || '';
+  const anchorerName = c.anchorer_username || c.anchorer_name || c.submitted_by_username
+    || c.anchorer?.username || c.submitter?.username || '';
+
+  return {
+    id: c.id,
+    title: c.title || 'Untitled Claim',
+    category: formattedCat,
+    chain: c.chain || 'Base',
+    anchorer: typeof anchorerAddr === 'string' ? anchorerAddr : '',
+    anchorerName: anchorerName || '',
+    tier: c.tier || c.anchorer_tier || '',
+    capital: Math.round(capital) || 0,
+    honorStaked: num(c.honor_stake ?? c.honorStaked ?? m.total_honor) ?? 0,
+    callers,
+    proven,
+    faded,
+    status: c.status || 'open',
+    daysLeft,
+    description: c.description || '',
+    calls: c.calls || [],
+    resolutionDate: c.resolution_date || c.resolutionDate,
+    metric: c.metric || '',
+    source: c.source || '',
+    txHash: c.anchor_tx_hash || c.txHash || '',
+  };
+};
+
 // Memoized Liquid-morphism ambient background blobs with organic breathing animations
 const AmbientBackground = React.memo(({ activePage }: { activePage: string }) => {
   return (
@@ -147,38 +212,15 @@ export default function App() {
     setClaimsList([]);
 
     try {
-      const liveRes = await DropimusAPI.getPublicClaims();
-      if (liveRes && liveRes.success && liveRes.data && liveRes.data.claims) {
-        const liveClaims = liveRes.data.claims.map((c: any) => {
-          const daysLeft = c.resolution_date
-            ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000))
-            : 0;
-
-          const rawCat = c.category || '';
-          const formattedCat = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase() : '';
-
-          return {
-            id: c.id,
-            title: c.title || 'Untitled Claim',
-            category: formattedCat,
-            chain: c.chain || 'Base',
-            anchorer: c.anchorer || '',
-            tier: c.tier || '',
-            capital: Math.round(parseFloat(c.capital_stake ?? c.capital ?? '0')) || 0,
-            honorStaked: Number(c.honor_stake ?? c.honorStaked ?? 0) || 0,
-            callers: Number(c.callers ?? 0) || 0,
-            proven: c.proven !== undefined ? Number(c.proven) : 0,
-            faded: c.faded !== undefined ? Number(c.faded) : 0,
-            status: c.status || 'open',
-            daysLeft: daysLeft,
-            description: c.description || '',
-            calls: c.calls || [],
-            resolutionDate: c.resolution_date || c.resolutionDate,
-            metric: c.metric || '',
-            source: c.source || '',
-            txHash: c.anchor_tx_hash || c.txHash || ''
-          };
-        });
+      const liveRes = await DropimusAPI.getMarketClaims();
+      const rawClaims: any[] =
+        (liveRes?.data?.claims) ??
+        (Array.isArray(liveRes?.data) ? liveRes.data : null) ??
+        (liveRes?.claims) ??
+        (Array.isArray(liveRes) ? liveRes : null) ??
+        [];
+      if (Array.isArray(rawClaims) && rawClaims.length > 0) {
+        const liveClaims = rawClaims.map(mapBackendClaim);
         setClaimsList(liveClaims);
       } else {
         setClaimsList([]);
@@ -211,9 +253,14 @@ export default function App() {
               connected: true,
               address: uData.address || prev.address,
             };
-            if (usageRes && usageRes.success && usageRes.data) {
-              updated.balanceHonor = usageRes.data.honor_status?.balance ?? updated.balanceHonor;
-              updated.tier = usageRes.data.honor_status?.title ?? updated.tier;
+            const ud = usageRes?.data;
+            if (usageRes && usageRes.success && ud) {
+              // Tolerant of the usage payload shape (honor lives under various keys).
+              const hs = ud.honor_status || ud.honor || {};
+              const honor = num(hs.balance ?? hs.honor_points ?? hs.total ?? hs.current ?? ud.honor_balance ?? ud.honor_points);
+              if (honor !== null) updated.balanceHonor = honor;
+              const tier = hs.title ?? hs.tier ?? ud.account_tier?.name ?? ud.tier ?? ud.tier_name;
+              if (tier) updated.tier = tier;
             }
             return updated;
           });
@@ -286,51 +333,65 @@ export default function App() {
           handleForceCleanSession();
         }
       } else {
+        // ── Returning user (no OAuth redirect) ───────────────────────────────
+        // Optimistic boot: if there's a stored token, render the app shell
+        // INSTANTLY from cached identity and verify in the background. This
+        // removes the long full-screen spinner — the per-page skeletons cover
+        // the brief data load instead of blocking the whole UI on the network.
         const token = localStorage.getItem('dropimus_jwt_access_token');
-        if (token) {
+        if (!token) {
+          setAuthenticated(false);
+          setIsLoading(false);
+          setIsAuthVerifying(false);
+          return;
+        }
+
+        try {
+          const cachedG = JSON.parse(localStorage.getItem('dropimus_protocol_google_user') || 'null');
+          if (cachedG?.loggedIn) setGoogleUser(cachedG);
+        } catch { /* ignore */ }
+        try {
+          const cachedW = JSON.parse(localStorage.getItem('dropimus_protocol_wallet') || 'null');
+          if (cachedW?.connected) setWallet(cachedW);
+        } catch { /* ignore */ }
+
+        setAuthenticated(true);
+        setIsAuthVerifying(false); // show the app now
+        setIsLoading(true);        // per-page skeletons while data loads
+
+        // Background verify + hydrate + load — never blocks first paint.
+        (async () => {
           try {
-            // Probe a Bearer-aware endpoint. /auth/status is validated against a
-            // cookie session and returns authenticated:false for a valid JWT/
-            // wallet session, so it must NOT gate a token login. /users/me
-            // honors the Bearer token (authFetch refreshes it on a 401).
             const meRes = await authFetch('/api/users/me', {}, { signOutOnFailure: false });
             if (meRes.ok) {
-              const meJson = await meRes.json().catch(() => null);
-              const u = meJson?.data;
+              const u = (await meRes.json().catch(() => null))?.data;
               if (u) {
-                authGoogleUser = {
+                setGoogleUser(prev => ({
+                  ...prev,
                   loggedIn: true,
-                  name: u.full_name || u.fullName || u.username || 'Dropimus User',
-                  email: u.email || '',
-                  avatar: u.avatar || '',
-                };
-
-                if (u.address) {
-                  authWallet = {
-                    connected: true,
-                    address: u.address,
-                    balanceUSDC: 0,
-                    balanceHonor: 0,
-                    tier: 'Novice'
-                  };
-                }
-
-                isAuthenticated = true;
+                  name: u.full_name || u.fullName || u.username || prev.name || 'Dropimus User',
+                  email: u.email || prev.email || '',
+                  avatar: u.avatar || prev.avatar || '',
+                }));
+                if (u.address) setWallet(prev => ({ ...prev, connected: true, address: u.address }));
               } else {
                 handleForceCleanSession();
+                setIsLoading(false);
+                return;
               }
             } else {
-              // 401 that couldn't be refreshed (signOutOnFailure:false keeps the
-              // UI from flashing) — the stored token is dead, clear it.
               handleForceCleanSession();
+              setIsLoading(false);
+              return;
             }
-          } catch (statusErr) {
-            console.warn('App: Background session verification silent ignore', statusErr);
-            handleForceCleanSession();
+          } catch {
+            // Transient network/CORS — keep the optimistic session; the periodic
+            // check resolves a genuinely dead session.
           }
-        } else {
-          handleForceCleanSession();
-        }
+          await refreshState();
+          setIsLoading(false);
+        })();
+        return;
       }
 
       if (authGoogleUser) {

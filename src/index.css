@@ -54,7 +54,9 @@ html, body, #root {
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  /* `clip` prevents horizontal overflow WITHOUT establishing a scroll
+     container — `hidden` here would break the sticky top bar. */
+  overflow-x: clip;
   transition: background 0.25s ease, color 0.15s ease;
 }
 

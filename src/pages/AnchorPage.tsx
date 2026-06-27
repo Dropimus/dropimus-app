@@ -138,7 +138,31 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
     return `${subject}'s ${currentMetric.label} will be ${dirWord} ${formattedThreshold} by ${resolutionDateStr}`;
   };
 
-  const quickPicks = ['ETH', 'BTC', 'SOL', 'Base'];
+  // Real example claims per category — illustrate what a good claim looks like.
+  // Clicking one pre-fills the subject so newcomers aren't staring at a blank box.
+  const EXAMPLE_CLAIMS: Record<string, { text: string; subject: string }[]> = {
+    Airdrops: [
+      { text: 'EigenLayer confirms a token airdrop before 2027', subject: 'EigenLayer' },
+      { text: 'LayerZero’s next season converts points to a token by Q4', subject: 'LayerZero' },
+    ],
+    Accountability: [
+      { text: 'Project X ships its roadmap milestone by its stated deadline', subject: 'Project X' },
+      { text: 'A team unlocks no insider tokens before the cliff date', subject: 'Team X' },
+    ],
+    Security: [
+      { text: 'Protocol Y has no exploit over the next 90 days', subject: 'Protocol Y' },
+      { text: 'Bridge Z stays fully solvent through year-end', subject: 'Bridge Z' },
+    ],
+    Projects: [
+      { text: 'Base passes 1M daily active addresses by Q4', subject: 'Base' },
+      { text: 'A project mainnet launches before its promised date', subject: 'Project X' },
+    ],
+    Trust: [
+      { text: 'Wallet 0x… is not an insider dump address', subject: 'Wallet 0x…' },
+      { text: 'An influencer’s called token is not a paid promo', subject: 'Token X' },
+    ],
+  };
+  const exampleClaims = EXAMPLE_CLAIMS[selectedCategory] || EXAMPLE_CLAIMS.Airdrops;
 
   const handleRelativeOptionSelect = (days: number) => {
     const d = new Date();
@@ -378,14 +402,23 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
         </Section>
 
         <Section title={claimType === 'comparative' ? 'Which two things are you comparing?' : 'What are you making a claim about?'}>
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Ethereum, a project name, a wallet" style={input} />
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. a project, a team, a wallet" style={input} />
           {claimType === 'comparative' && (
-            <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} placeholder="Compared against… e.g. Solana" style={{ ...input, marginTop: '8px' }} />
+            <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} placeholder="Compared against…" style={{ ...input, marginTop: '8px' }} />
           )}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-            {quickPicks.map((q) => (
-              <button key={q} onClick={() => setSubject(q)} style={chip}>{q}</button>
-            ))}
+          <div style={{ marginTop: '12px' }}>
+            <span style={{ fontSize: '11px', color: C.faint, fontWeight: 600 }}>Examples of good {selectedCategory.toLowerCase()} claims — tap to start from one:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+              {exampleClaims.map((ex) => (
+                <button
+                  key={ex.text}
+                  onClick={() => setSubject(ex.subject)}
+                  style={{ textAlign: 'left', background: C.deep, border: `1px solid ${C.border}`, borderRadius: '10px', padding: '9px 12px', color: C.sub, fontSize: '12px', cursor: 'pointer', lineHeight: 1.4 }}
+                >
+                  “{ex.text}”
+                </button>
+              ))}
+            </div>
           </div>
         </Section>
 

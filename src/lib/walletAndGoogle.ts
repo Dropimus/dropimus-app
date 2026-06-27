@@ -86,6 +86,7 @@ export interface Claim {
   category: string;
   chain: string;
   anchorer: string;
+  anchorerName?: string;
   tier: string;
   capital: number;
   honorStaked: number;

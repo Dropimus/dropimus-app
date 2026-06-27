@@ -230,6 +230,24 @@ export class DropimusAPI {
   }
 
   /**
+   * GET /api/market/claims — claims enriched with real market sentiment
+   * (believe/doubt weights, participant counts). Falls back to the plain
+   * /claims/ list if the market endpoint is unavailable, so the UI always
+   * shows real data and never fabricates sentiment.
+   */
+  static async getMarketClaims(limit = 50): Promise<any> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/market/claims?limit=${limit}`);
+      if (res.ok) {
+        const data = await res.json();
+        const norm = this.normalizeClaimsResponse(data);
+        if (norm.data.claims.length > 0) return norm;
+      }
+    } catch { /* fall through to plain claims */ }
+    return this.getPublicClaims(limit);
+  }
+
+  /**
    * 6. GET /api/claims/{id}
    */
   static async getClaimById(id: string | number): Promise<any> {

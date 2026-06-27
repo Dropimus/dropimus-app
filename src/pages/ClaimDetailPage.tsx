@@ -15,7 +15,6 @@ import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
 import { PROOF_TYPES } from '../data';
 import { signUSDCApprovalAndDeposit, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
-import { StakeCalculator } from '../components/shared/StakeCalculator';
 import CountdownTimer from '../components/shared/CountdownTimer';
 import {
   ResponsiveContainer,
@@ -741,11 +740,18 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
           gap: '16px',
         }}
       >
-        <span style={{ alignSelf: 'flex-start', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          LIVE SENTIMENT METRICS
-        </span>
+        <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            LIVE SENTIMENT
+          </span>
+          <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: (totalProven + totalFaded) === 0 ? C.sub : totalConfidenceValue >= 50 ? '#10B981' : C.fadedBright }}>
+            {(totalProven + totalFaded) === 0
+              ? 'No positions yet'
+              : (totalConfidenceValue >= 50 ? `${totalConfidenceValue}% Believe` : `${100 - totalConfidenceValue}% Doubt`)}
+          </span>
+        </div>
 
-        {/* Large Orb */}
+        {/* Large Orb — single source of sentiment */}
         <SentimentOrb proven={claim.proven} faded={claim.faded} size={100} animate={claim.status === 'open'} />
 
         <div style={{ width: '100%', height: '1px', background: C.hairline }} />
@@ -780,65 +786,6 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
           </div>
         </div>
       </div>
-
-      {/* Current Believe vs Doubt consensus — real stake-weighted split only */}
-      <div
-        style={{
-          background: C.card,
-          backdropFilter: 'blur(20px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(190%)',
-          border: `1px solid ${C.border}`,
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
-          borderRadius: '24px',
-          padding: '20px',
-          marginBottom: '18px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              CURRENT CONVICTION
-            </span>
-            <span style={{ fontSize: '11px', color: C.sub }}>
-              Stake-weighted Believe vs Doubt split
-            </span>
-          </div>
-          <span style={{
-            fontFamily: FONTS.mono,
-            fontSize: '14px',
-            fontWeight: 800,
-            color: totalConfidenceValue > 55 ? '#10B981' : totalConfidenceValue < 45 ? C.fadedBright : C.blueLight
-          }}>
-            {totalConfidenceValue}%
-          </span>
-         </div>
-
-         {/* Believe / Doubt split bar (derived from real proven/faded weights) */}
-         <div style={{ width: '100%', height: '12px', borderRadius: '99px', overflow: 'hidden', display: 'flex', background: C.deep }}>
-           <div style={{ width: `${totalConfidenceValue}%`, background: '#10B981' }} />
-           <div style={{ width: `${100 - totalConfidenceValue}%`, background: C.faded }} />
-         </div>
-
-         {/* Legend footer */}
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${C.border}`, fontSize: '10px', fontFamily: FONTS.mono, color: C.sub }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
-            Believe {totalConfidenceValue}%
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.faded, display: 'inline-block' }} />
-            Doubt {100 - totalConfidenceValue}%
-          </span>
-         </div>
-      </div>
-
-      {/* Stake Impact Calculator Module */}
-      <StakeCalculator 
-        claimTitle={claim.title} 
-        currentHonorBalance={walletBalanceHonor} 
-      />
 
       {/* 4. Make a call accordion block */}
       {claim.status === 'open' && (
@@ -1026,8 +973,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '10px' }}>
-                  <span>CAPITAL ESCROW</span>
-                  <span>Balance: ${walletBalanceUSDC} USDC</span>
+                  <span>CONVICTION (dUSD)</span>
                 </div>
 
                 {/* Capital stake presets */}
@@ -1279,8 +1225,8 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
                     </span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontFamily: FONTS.mono, fontSize: '16px', fontWeight: 800, color: C.blueLight }}>
-                      ${capitalStake} USDC × {maxMultiplier}x = {computedWeight} Weight
+                    <span style={{ fontSize: '11px', color: C.blueLight }}>
+                      Stronger evidence increases the honor you earn if proven right.
                     </span>
                   </div>
                 </div>
@@ -1595,95 +1541,36 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
                   BALANCE IMPACT SUMMARY
                 </div>
 
-                {/* USDC Impact */}
+                {/* Your conviction (real, exact) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.elevated, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${C.border}` }}>
                   <div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: C.text, display: 'block' }}>USDC Collateral</span>
-                    <span style={{ fontSize: '9px', color: C.sub }}>Refundable if consensus wins</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: C.text, display: 'block' }}>Your conviction</span>
+                    <span style={{ fontSize: '9px', color: C.sub }}>Locked in escrow until the claim resolves</span>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: C.goldBright }}>
-                      -${capitalStake} USDC
-                    </div>
-                    <div style={{ fontSize: '9px', color: C.sub, fontFamily: FONTS.mono }}>
-                      Bal: ${walletBalanceUSDC} → ${walletBalanceUSDC - capitalStake}
-                    </div>
+                  <div style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: C.goldBright }}>
+                    ${capitalStake} dUSD
                   </div>
                 </div>
 
-                {/* Honor Impact */}
-                {(() => {
-                  const estimatedHonorReward = Math.max(1, Math.round(50 * (capitalStake / 50) * maxMultiplier));
-                  const estimatedHonorSlash = Math.max(1, Math.round(50 * (capitalStake / 50) * 0.25));
-                  return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.elevated, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${C.border}` }}>
-                      <div>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: C.text, display: 'block' }}>Reputation Delta</span>
-                        <span style={{ fontSize: '9px', color: C.sub }}>Decayed if false · Earned if correct</span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: '#10B981' }}>
-                          +{estimatedHonorReward}⚡ / -{estimatedHonorSlash}⚡
-                        </div>
-                        <div style={{ fontSize: '9px', color: C.sub, fontFamily: FONTS.mono }}>
-                          Estimated Reputation Range
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Estimated Return Multiplier Summary */}
-              <div style={{ background: 'rgba(0, 82, 255, 0.04)', border: '1px solid rgba(0, 82, 255, 0.12)', borderRadius: '12px', padding: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                  <span style={{ color: C.sub }}>Your Multiplied Weight:</span>
-                  <span style={{ fontWeight: 800, color: C.blueLight, fontFamily: FONTS.mono }}>
-                    {computedWeight} Weight
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                  <span style={{ color: C.sub }}>Consensus Yield Boost:</span>
-                  <span style={{ fontWeight: 800, color: '#10B981', fontFamily: FONTS.mono }}>
-                    {(1 + (100 - totalConfidenceValue) / 100).toFixed(2)}x
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span style={{ color: C.sub }}>Est. Successful Return:</span>
-                  <span style={{ fontWeight: 800, color: '#10B981', fontFamily: FONTS.mono }}>
-                    +${(capitalStake * 0.40 * (1 + (100 - totalConfidenceValue) / 100)).toFixed(2)} USDC
-                  </span>
+                {/* Honest reward mechanic — no fabricated numbers */}
+                <div style={{ background: C.deep, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '12px', fontSize: '11px', color: C.sub, lineHeight: 1.6 }}>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ color: '#10B981', fontWeight: 800 }}>If you're right</span>
+                    <span>you recover your conviction plus a share of the opposing pool, and gain honor. Going against the current majority earns more.</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ color: C.fadedBright, fontWeight: 800 }}>If you're wrong</span>
+                    <span>your conviction goes to the side that was right, and some honor is slashed.</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Insufficient balance checks or Slashing warning */}
-              {(walletBalanceUSDC < capitalStake) ? (
-                <div
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    fontSize: '11px',
-                    color: '#FF6B6B',
-                    fontWeight: 600,
-                    lineHeight: '1.4',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <AlertTriangle size={14} style={{ flexShrink: 0, color: '#FF6B6B' }} />
-                  <span>INSUFFICIENT BALANCE: Your collateral exceeds your actual holdings (${walletBalanceUSDC} USDC). Please head back and adjust.</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', fontSize: '10px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>
-                  <AlertTriangle size={12} style={{ flexShrink: 0 }} />
-                  <span>
-                    Slashed funds are permanently locked. Your transaction will be verified by decentralized validators on-chain.
-                  </span>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', fontSize: '10px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>
+                <AlertTriangle size={12} style={{ flexShrink: 0 }} />
+                <span>
+                  Settlement is decided on-chain by stake-weighted consensus once the claim resolves.
+                </span>
+              </div>
 
               {/* Signing Progress Visualizer */}
               {signingStage !== 'idle' && (
@@ -1814,7 +1701,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
                     Back & Modify
                   </button>
                   <button
-                    disabled={walletBalanceUSDC < capitalStake}
+                    disabled={capitalStake < 5}
                     onClick={handleTriggerTransactionSigning}
                     style={{
                       flex: 1.3,
@@ -1825,8 +1712,8 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
                       color: '#000000',
                       fontSize: '13px',
                       fontWeight: 800,
-                      cursor: walletBalanceUSDC < capitalStake ? 'not-allowed' : 'pointer',
-                      opacity: walletBalanceUSDC < capitalStake ? 0.35 : 1,
+                      cursor: capitalStake < 5 ? 'not-allowed' : 'pointer',
+                      opacity: capitalStake < 5 ? 0.35 : 1,
                       boxShadow: `0 8px 24px ${selectedSide === 'faded' ? C.fadedGlow : C.blueGlow}`,
                       transition: 'all 0.15s ease',
                     }}

@@ -9,6 +9,7 @@ import { C, FONTS } from '../../tokens';
 import CatPill from './CatPill';
 import StatusPill from './StatusPill';
 import TierBadge from './TierBadge';
+import SentimentOrb from './SentimentOrb';
 import Btn from './Btn';
 import { Claim } from '../../lib/walletAndGoogle';
 
@@ -29,17 +30,16 @@ const fmt = (n: number, currency = false): string => {
 };
 
 export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) {
-  // Real stake-weighted Believe/Doubt split (no fabricated values).
   const totalWeight = (claim.proven || 0) + (claim.faded || 0);
-  const believePct = totalWeight > 0 ? Math.round(((claim.proven || 0) / totalWeight) * 100) : 0;
-  const doubtPct = totalWeight > 0 ? 100 - believePct : 0;
   const hasPositions = totalWeight > 0;
+  const believePct = hasPositions ? Math.round(((claim.proven || 0) / totalWeight) * 100) : 0;
 
   let accent = 'rgba(255,255,255,0.08)';
   if (claim.status === 'proven') accent = `${C.blueLight}44`;
   else if (claim.status === 'faded') accent = `${C.faded}44`;
 
-  const anchorerLabel = shortAddr(claim.anchorer);
+  // Show who anchored it: prefer a real name/handle, fall back to short address.
+  const anchoredBy = claim.anchorerName || shortAddr(claim.anchorer);
 
   return (
     <div
@@ -86,49 +86,43 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         {claim.title}
       </h3>
 
-      {/* 3. Believe vs Doubt — real consensus split */}
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.04em' }}>
-          {hasPositions ? (
-            <>
-              <span style={{ color: C.blueLight }}>Believe {believePct}%</span>
-              <span style={{ color: C.fadedBright }}>{doubtPct}% Doubt</span>
-            </>
-          ) : (
-            <span style={{ color: C.sub, fontWeight: 600 }}>No positions yet — be the first to weigh in</span>
-          )}
-        </div>
-        <div style={{ width: '100%', height: '8px', borderRadius: '99px', overflow: 'hidden', display: 'flex', background: C.deep }}>
-          {hasPositions ? (
-            <>
-              <div style={{ width: `${believePct}%`, background: C.blueLight }} />
-              <div style={{ width: `${doubtPct}%`, background: C.faded }} />
-            </>
-          ) : (
-            <div style={{ width: '100%', background: C.elevated }} />
-          )}
-        </div>
-      </div>
-
-      {/* 4. Key facts: stake · positions · time */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-        <Stat icon={<Coins size={12} />} label="Staked" value={fmt(claim.capital, true)} color={C.goldBright} />
-        <Stat icon={<Users size={12} />} label="Positions" value={String(claim.callers || 0)} color={C.text} />
-        {claim.daysLeft > 0 && claim.status === 'open' && (
-          <Stat icon={<Clock size={12} />} label="Resolves" value={`${claim.daysLeft}d`} color={C.blueLight} />
+      {/* 3. Sentiment orb (single source of sentiment) + economic facts */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
+        {hasPositions ? (
+          <div style={{ flexShrink: 0, textAlign: 'center' }}>
+            <SentimentOrb proven={claim.proven} faded={claim.faded} size={72} animate={claim.status === 'open'} />
+            <div style={{ fontSize: '10px', fontWeight: 700, marginTop: '4px', color: believePct >= 50 ? C.blueLight : C.fadedBright }}>
+              {believePct >= 50 ? `${believePct}% Believe` : `${100 - believePct}% Doubt`}
+            </div>
+          </div>
+        ) : (
+          <div style={{ flexShrink: 0, width: '72px', height: '72px', borderRadius: '50%', border: `1px dashed ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            <span style={{ fontSize: '9px', color: C.faint, lineHeight: 1.3, padding: '0 8px' }}>No positions yet</span>
+          </div>
         )}
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <Stat icon={<Coins size={12} />} label="Staked" value={fmt(claim.capital, true)} color={C.goldBright} />
+          <Stat icon={<Users size={12} />} label="Positions" value={String(claim.callers || 0)} color={C.text} />
+          {claim.daysLeft > 0 && claim.status === 'open' && (
+            <Stat icon={<Clock size={12} />} label="Resolves in" value={`${claim.daysLeft}d`} color={C.blueLight} />
+          )}
+        </div>
       </div>
 
-      {/* 5. Anchorer attribution (only when present) */}
-      {anchorerLabel && (
+      {/* 4. Who anchored it */}
+      {anchoredBy && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: `linear-gradient(135deg, ${C.gold}, ${C.blueLight})`, flexShrink: 0 }} />
           <span style={{ fontSize: '10px', color: C.faint }}>Anchored by</span>
-          <span style={{ fontFamily: FONTS.mono, fontSize: '11px', color: C.sub }}>{anchorerLabel}</span>
+          <span style={{ fontFamily: claim.anchorerName ? FONTS.body : FONTS.mono, fontSize: '11px', color: C.sub, fontWeight: claim.anchorerName ? 600 : 400 }}>
+            {anchoredBy}
+          </span>
           {claim.tier && <TierBadge tier={claim.tier} />}
         </div>
       )}
 
-      {/* 6. Actions */}
+      {/* 5. Actions */}
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '8px' }}>
         {claim.status === 'open' ? (
           <>
@@ -163,20 +157,19 @@ function Stat({ icon, label, value, color }: { icon: React.ReactNode; label: str
   return (
     <div
       style={{
-        flex: 1,
         background: C.elevated,
-        borderRadius: '10px',
-        padding: '8px 10px',
+        borderRadius: '8px',
+        padding: '6px 10px',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '3px',
+        justifyContent: 'space-between',
+        alignItems: 'center',
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
         <span style={{ color: C.faint }}>{icon}</span>
         {label}
       </span>
-      <span style={{ fontFamily: FONTS.mono, fontSize: '14px', fontWeight: 700, color }}>{value}</span>
+      <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 700, color }}>{value}</span>
     </div>
   );
 }
