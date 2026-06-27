@@ -52,10 +52,11 @@ export default defineConfig(() => {
       allowedHosts: true,
       proxy: {
         '/api': {
-          // Default to uvicorn on :8000. If the backend runs behind nginx
-          // (e.g. docker compose exposing 80/443 but not 8000), set
-          // VITE_API_PROXY_TARGET=http://127.0.0.1  (or https://127.0.0.1).
-          target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000',
+          // Any same-origin /api/* request in dev is proxied to the live backend
+          // by default, so the app works even before CORS is configured and
+          // never hits a dead 127.0.0.1:8000. Point at a local backend with
+          // VITE_API_PROXY_TARGET=http://127.0.0.1:8000 (or http://127.0.0.1 for nginx).
+          target: process.env.VITE_API_PROXY_TARGET || 'https://api.dropimus.com',
           changeOrigin: true,
           secure: false, // Disables strict SSL check for self-signed development certificates on localhost
         }
