@@ -251,7 +251,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
         wallet.connected = true;
         DropimusProtocolAPI.saveWallet(wallet);
 
-        showToast("Sovereign identity successfully anchored to court!", "success");
+        showToast("Wallet verified — welcome to Dropimus!", "success");
         setSignatureProgress('success');
         setWalletConnected(true);
 

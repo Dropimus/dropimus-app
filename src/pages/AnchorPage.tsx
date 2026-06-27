@@ -2216,7 +2216,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                     Collateral Diluted
                   </span>
                   <p style={{ fontSize: '11px', color: C.sub, marginTop: '4px', lineHeight: '1.4' }}>
-                    Court lobby counter-claimants dilute your ${capitalStake} USDC locked <TermTooltip term="capital">stake</TermTooltip>. No <TermTooltip term="honor">Honor reputation</TermTooltip> gained.
+                    Opposing participants dilute your ${capitalStake} dUSD <TermTooltip term="capital">conviction</TermTooltip>. No <TermTooltip term="honor">Honor</TermTooltip> gained.
                   </p>
                 </div>
               </div>
