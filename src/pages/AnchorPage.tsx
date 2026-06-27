@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock, AlertTriangle, Zap, CheckCircle2, Shield, Rocket, ClipboardList,
   ArrowRight, ArrowLeft, Plus, X, Copy, Check, RefreshCw, Info, Wallet as WalletIcon,
@@ -37,6 +37,14 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
   const [step, setStep] = useState<number>(1); // 1 | 2 | 3
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsDesktop(window.innerWidth >= 992);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Step 1 — the claim
   const [claimType, setClaimType] = useState<string>('binary');
@@ -185,11 +193,17 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
 
   // ─── Anchor submit ──────────────────────────────────────────────────────────
   const handleFinalAnchorSubmit = async () => {
-    if (!wallet?.address) { setSigningStage('error'); setSigningMessage('Connect your wallet to anchor a claim.'); return; }
+    // The on-chain address comes from the connected wallet — fall back to the
+    // address the backend preflight already resolved for this user, so a missing
+    // `wallet.address` in app state never blocks an already-connected wallet.
+    const fromAddr = wallet?.address || preflightData?.address || '';
+    if (!fromAddr) { setSigningStage('error'); setSigningMessage('No connected wallet address found. Reconnect your wallet and try again.'); return; }
     setSigningStage('approve');
-    setSigningMessage('Preparing your on-chain stake…');
+    setSigningMessage('Opening your wallet…');
     try {
-      const result = await signUSDCApprovalAndDeposit(wallet.address, capitalStake, 0, (msg, stage) => { setSigningMessage(msg); setSigningStage(stage); });
+      // Reuse the preflight we already fetched in this step so the wallet prompt
+      // appears immediately instead of waiting on another network round-trip.
+      const result = await signUSDCApprovalAndDeposit(fromAddr, capitalStake, 0, (msg, stage) => { setSigningMessage(msg); setSigningStage(stage); }, preflightData);
       if (!result.success) throw new Error(result.error || 'Transaction rejected');
 
       setSigningStage('sign');
@@ -269,9 +283,20 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
   // ─── Signing overlay ────────────────────────────────────────────────────────
   const signingActive = signingStage !== 'idle' && signingStage !== 'complete';
 
+  // Live claim preview — kept visible so users always see their claim title
+  // while filling fields lower down (sticky on mobile, sidebar on desktop).
+  const Preview = () => (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 6px 20px rgba(0,0,0,0.25)' }}>
+      <span style={{ fontSize: '10px', color: C.sub, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Your claim, in plain English</span>
+      <p style={{ fontFamily: FONTS.display, fontSize: '15px', fontWeight: 700, color: subject ? C.text : C.faint, marginTop: '6px', lineHeight: 1.4 }}>
+        {buildClaimStatement()}
+      </p>
+    </div>
+  );
+
   // ─── Shells ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-xl mx-auto px-4 pb-28 animate-fadeIn" style={{ color: C.text, fontFamily: FONTS.body }}>
+    <div className="mx-auto px-4 pb-28 animate-fadeIn" style={{ color: C.text, fontFamily: FONTS.body, maxWidth: isDesktop ? (step === 3 ? '680px' : '980px') : '560px' }}>
       {/* Header + stepper */}
       <div style={{ paddingTop: '16px', marginBottom: '20px' }}>
         <h1 style={{ fontFamily: FONTS.display, fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>Anchor a claim</h1>
@@ -293,19 +318,23 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
         </div>
       </div>
 
-      {/* Live claim preview (steps 1-2) */}
-      {step < 3 && (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '14px 16px', marginBottom: '18px' }}>
-          <span style={{ fontSize: '10px', color: C.sub, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Your claim, in plain English</span>
-          <p style={{ fontFamily: FONTS.display, fontSize: '15px', fontWeight: 700, color: subject ? C.text : C.faint, marginTop: '6px', lineHeight: 1.4 }}>
-            {buildClaimStatement()}
-          </p>
+      {step === 3 ? (
+        StepThree()
+      ) : isDesktop ? (
+        // Desktop: form on the left, the claim preview pinned alongside it.
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
+          <div style={{ minWidth: 0 }}>{step === 1 ? StepOne() : StepTwo()}</div>
+          <aside style={{ position: 'sticky', top: '80px' }}>{Preview()}</aside>
         </div>
+      ) : (
+        // Mobile: preview pinned to the top so the claim title is always in view.
+        <>
+          <div style={{ position: 'sticky', top: '58px', zIndex: 20, background: C.canvas, paddingBottom: '12px', marginBottom: '8px' }}>
+            {Preview()}
+          </div>
+          {step === 1 ? StepOne() : StepTwo()}
+        </>
       )}
-
-      {step === 1 && StepOne()}
-      {step === 2 && StepTwo()}
-      {step === 3 && StepThree()}
 
       {/* Signing modal */}
       {signingActive && (

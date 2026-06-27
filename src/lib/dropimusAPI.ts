@@ -401,7 +401,8 @@ export async function signUSDCApprovalAndDeposit(
   userAddress: string,
   usdcAmount: number,
   claimId: number | string,
-  onProgress: (status: string, stage: 'approve' | 'deposit' | 'sign' | 'complete' | 'error') => void
+  onProgress: (status: string, stage: 'approve' | 'deposit' | 'sign' | 'complete' | 'error') => void,
+  prefetchedPreflight?: any,
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
   try {
     // Contract addresses come exclusively from the backend preflight — no
@@ -412,28 +413,25 @@ export async function signUSDCApprovalAndDeposit(
     let reqUnits = BigInt(Math.round(usdcAmount * 1_000_000));
     let skipApproval = false;
 
-    onProgress('Verifying on-chain preflight requirements...', 'approve');
-
-    try {
-      const res = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
-      if (!res.ok) {
-        throw new Error(`Preflight query failed (HTTP ${res.status})`);
+    // Reuse a preflight the caller already fetched (so the wallet prompt opens
+    // immediately) — otherwise fetch it now.
+    let pf = prefetchedPreflight;
+    if (!pf) {
+      onProgress('Verifying on-chain requirements…', 'approve');
+      try {
+        const res = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
+        if (!res.ok) throw new Error(`Preflight query failed (HTTP ${res.status})`);
+        const json = await res.json();
+        if (!json || json.success === false || !json.data) throw new Error(json?.detail || 'Invalid preflight response.');
+        pf = json.data;
+      } catch (e: any) {
+        throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
       }
-      const json = await res.json();
-      if (!json || json.success === false || !json.data) {
-        throw new Error(json?.detail || 'Invalid preflight response.');
-      }
-      treasuryAddr = json.data.treasury_address || '';
-      mockUsdcAddr = json.data.mock_usdc_address || '';
-      if (json.data.required_units) {
-        reqUnits = BigInt(json.data.required_units);
-      }
-      if (json.data.has_allowance) {
-        skipApproval = true;
-      }
-    } catch (e: any) {
-      throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
     }
+    treasuryAddr = pf.treasury_address || '';
+    mockUsdcAddr = pf.mock_usdc_address || '';
+    if (pf.required_units) reqUnits = BigInt(pf.required_units);
+    if (pf.has_allowance) skipApproval = true;
 
     if (!treasuryAddr || !mockUsdcAddr) {
       throw new Error('Backend did not return on-chain contract addresses. Cannot proceed safely.');
