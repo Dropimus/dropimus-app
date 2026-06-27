@@ -52,10 +52,36 @@ export interface AnchorPayload {
   proofs?: AnchorProof[];
 }
 
+// Contract addresses are immutable per deployment, so the config response is
+// cached for the session after the first successful fetch.
+let _contractConfigCache: { addresses: Record<string, string>; chain?: any } | null = null;
+
 export class DropimusAPI {
   private static getBaseUrl(): string {
     // Central API base (https://api.dropimus.com by default; override via VITE_API_BASE_URL).
     return API_BASE;
+  }
+
+  /**
+   * GET /api/config/contracts — canonical on-chain contract addresses + chain.
+   * Returns { addresses: { dUSD, capital, registry, honor, anchor, treasury },
+   * chain: { chain_id, chain_name, rpc_url } } or null if unavailable. Cached.
+   */
+  static async getContractConfig(): Promise<{ addresses: Record<string, string>; chain?: any } | null> {
+    if (_contractConfigCache) return _contractConfigCache;
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/config/contracts`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      const data = json?.data ?? json;
+      if (data?.addresses) {
+        _contractConfigCache = { addresses: data.addresses, chain: data.chain };
+        return _contractConfigCache;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -428,13 +454,18 @@ export async function signUSDCApprovalAndDeposit(
         throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
       }
     }
-    treasuryAddr = pf.treasury_address || '';
-    mockUsdcAddr = pf.mock_usdc_address || '';
     if (pf.required_units) reqUnits = BigInt(pf.required_units);
     if (pf.has_allowance) skipApproval = true;
 
+    // Contract addresses: prefer the canonical /api/config/contracts endpoint
+    // (dUSD = the token to approve, treasury = the spender/deposit target),
+    // falling back to whatever preflight returned.
+    const cfg = await DropimusAPI.getContractConfig();
+    treasuryAddr = cfg?.addresses?.treasury || pf.treasury_address || '';
+    mockUsdcAddr = cfg?.addresses?.dUSD || pf.mock_usdc_address || '';
+
     if (!treasuryAddr || !mockUsdcAddr) {
-      throw new Error('Backend did not return on-chain contract addresses. Cannot proceed safely.');
+      throw new Error('Could not resolve on-chain contract addresses. Please try again shortly.');
     }
 
     const { getAppKit } = await import('./walletAndGoogle');
