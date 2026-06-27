@@ -460,7 +460,7 @@ export async function signUSDCApprovalAndDeposit(
       const pAmount = reqUnits.toString(16).padStart(64, '0');
       const approveCalldata = '0x095ea7b3' + pSpender + pAmount;
 
-      onProgress("Please approve the spend limit transaction in your connected wallet...", "approve");
+      onProgress("Please approve the spend limit in your wallet…", "approve");
       const approveTx = await provider.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -470,8 +470,25 @@ export async function signUSDCApprovalAndDeposit(
         }]
       });
 
-      onProgress(`Spend limit approved in TX: ${approveTx.slice(0, 10)}... Pending confirmation...`, 'deposit');
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      // Poll the backend preflight until the allowance is actually confirmed
+      // on-chain — a fixed wait races the block time and makes the deposit
+      // (transferFrom) revert, which previously looked like "approve again".
+      onProgress(`Approval submitted (${approveTx.slice(0, 10)}…). Waiting for on-chain confirmation…`, 'deposit');
+      let allowanceConfirmed = false;
+      for (let i = 0; i < 15; i++) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        try {
+          const pf = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
+          if (pf.ok) {
+            const pj = await pf.json();
+            if (pj?.data?.has_allowance) { allowanceConfirmed = true; break; }
+          }
+        } catch { /* keep polling */ }
+        onProgress(`Confirming approval on Base… (${(i + 1) * 3}s)`, 'deposit');
+      }
+      if (!allowanceConfirmed) {
+        return { success: false, error: 'Approval is still confirming on-chain. Please wait a moment and try again.' };
+      }
     }
 
     onProgress(`Now signing stake collateral deposit of $${usdcAmount} USDC to Dropimus smart contract...`, 'deposit');

@@ -16,26 +16,6 @@ import { Claim, getAppKit } from '../lib/walletAndGoogle';
 import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
 
-// ─── On-chain calldata helpers ──────────────────────────────────────────────
-function encodeCalldata(selector: string, targetAddress: string, amountUnits: string | number): string {
-  const cleanAddr = targetAddress.startsWith('0x') ? targetAddress.slice(2) : targetAddress;
-  const paddedAddr = cleanAddr.toLowerCase().padStart(64, '0');
-  const bigAmt = typeof amountUnits === 'number' ? BigInt(Math.round(amountUnits)) : BigInt(amountUnits);
-  const paddedAmt = bigAmt.toString(16).padStart(64, '0');
-  return selector + paddedAddr + paddedAmt;
-}
-
-function sanitizeEtherAddress(addr: string | null | undefined, fallback: string): string {
-  if (!addr || typeof addr !== 'string') return fallback;
-  const cleaned = addr.trim();
-  if (cleaned.startsWith('0x')) {
-    if (cleaned.length === 42) return cleaned;
-    if (cleaned.length < 42) return '0x' + cleaned.slice(2).padEnd(40, '0');
-    return cleaned.slice(0, 42);
-  }
-  return fallback;
-}
-
 const CATEGORIES = [
   { id: 'Airdrops', label: 'Airdrops', icon: IconParachute, blurb: 'Will an airdrop happen, and how big?' },
   { id: 'Accountability', label: 'Accountability', icon: ClipboardList, blurb: 'Will a team keep its promise?' },
@@ -201,29 +181,6 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
     if (!step2Ok) return;
     setStep(3);
     runPreflightCheck(capitalStake);
-  };
-
-  const handleApproveTreasury = async () => {
-    if (!preflightData) return;
-    setPreflightState('approving');
-    setPreflightError('');
-    try {
-      const kit = await getAppKit();
-      const provider = kit?.getWalletProvider() || (window as any).ethereum;
-      if (!provider?.request) throw new Error('No active wallet provider found. Please reconnect your wallet.');
-      const userAddr = sanitizeEtherAddress(wallet?.address || preflightData.address, preflightData.address);
-      if (!preflightData.treasury_address || !preflightData.mock_usdc_address) throw new Error('Missing contract addresses from the backend.');
-      const treasuryAddr = sanitizeEtherAddress(preflightData.treasury_address, preflightData.treasury_address);
-      const mockUsdcAddr = sanitizeEtherAddress(preflightData.mock_usdc_address, preflightData.mock_usdc_address);
-      const approveCalldata = encodeCalldata('0x095ea7b3', treasuryAddr, preflightData.required_units);
-      const txHash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: userAddr, to: mockUsdcAddr, data: approveCalldata }] });
-      setPreflightError(`Approval sent (${txHash.slice(0, 12)}…). Confirming…`);
-      await new Promise((r) => setTimeout(r, 6000));
-      await runPreflightCheck(capitalStake);
-    } catch (err: any) {
-      setPreflightState('not_ready');
-      setPreflightError(`Approval failed: ${err?.message || 'transaction rejected'}`);
-    }
   };
 
   // ─── Anchor submit ──────────────────────────────────────────────────────────
@@ -556,8 +513,6 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
   // ─── Step 3: review + funding + anchor ───────────────────────────────────────
   function StepThree() {
     const hasBalance = !!preflightData?.has_balance;
-    const hasAllowance = !!preflightData?.has_allowance;
-    const ready = preflightState === 'ready';
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -574,7 +529,7 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
         </div>
 
         {/* Funding */}
-        <div style={{ background: C.card, border: `1px solid ${ready ? C.blueLight + '44' : C.border}`, borderRadius: '18px', padding: '18px' }}>
+        <div style={{ background: C.card, border: `1px solid ${hasBalance ? C.blueLight + '44' : C.border}`, borderRadius: '18px', padding: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <WalletIcon size={15} style={{ color: C.blueLight }} />
             <span style={{ fontSize: '13px', fontWeight: 800, color: C.text }}>Funding check</span>
@@ -597,11 +552,12 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
                 <span style={{ fontFamily: FONTS.mono, color: C.text }}>{Number(preflightData.required_usdc ?? capitalStake).toLocaleString()} dUSD</span>
               </div>
 
-              {ready ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: C.blueBright, fontSize: '13px', fontWeight: 600 }}>
-                  <CheckCircle2 size={16} /> Funded and approved — ready to anchor.
+              {hasBalance ? (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: C.blueBright, fontSize: '12px', fontWeight: 500, lineHeight: 1.5 }}>
+                  <CheckCircle2 size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                  <span>Funded and ready. When you anchor, your wallet will ask you to <b>approve</b> the spend, then <b>deposit</b> the stake — two quick confirmations.</span>
                 </div>
-              ) : !hasBalance ? (
+              ) : (
                 <div style={{ background: C.goldDim, border: `1px solid ${C.gold}33`, borderRadius: '12px', padding: '12px' }}>
                   <p style={{ fontSize: '12px', color: C.goldBright, fontWeight: 700, marginBottom: '4px' }}>You need more test dUSD</p>
                   <p style={{ fontSize: '12px', color: C.sub, lineHeight: 1.5 }}>
@@ -609,20 +565,11 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
                   </p>
                   <Btn variant="ghost" fullWidth style={{ padding: '9px', marginTop: '10px' }} onClick={() => runPreflightCheck(capitalStake)}><RefreshCw size={13} /> Re-check balance</Btn>
                 </div>
-              ) : !hasAllowance ? (
-                <div>
-                  <p style={{ fontSize: '12px', color: C.sub, lineHeight: 1.5, marginBottom: '10px' }}>
-                    One-time approval: let the Dropimus escrow move {Number(preflightData.required_usdc ?? capitalStake).toLocaleString()} dUSD for this stake.
-                  </p>
-                  <Btn variant="primary" fullWidth style={{ padding: '11px' }} disabled={preflightState === 'approving'} onClick={handleApproveTreasury}>
-                    {preflightState === 'approving' ? 'Approving…' : 'Approve dUSD'}
-                  </Btn>
-                </div>
-              ) : null}
+              )}
             </>
           )}
 
-          {preflightError && <p style={{ fontSize: '11px', color: signingStage === 'error' ? C.fadedBright : C.sub, marginTop: '10px', lineHeight: 1.4 }}>{preflightError}</p>}
+          {preflightError && <p style={{ fontSize: '11px', color: C.sub, marginTop: '10px', lineHeight: 1.4 }}>{preflightError}</p>}
         </div>
 
         {signingStage === 'error' && (
@@ -633,7 +580,7 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <Btn variant="secondary" style={{ flex: '0 0 auto', padding: '13px 18px' }} onClick={() => { setStep(2); setSigningStage('idle'); }}><ArrowLeft size={15} /> Back</Btn>
-          <Btn variant="primary" style={{ flex: 1, padding: '13px' }} disabled={!ready} onClick={handleFinalAnchorSubmit}>
+          <Btn variant="primary" style={{ flex: 1, padding: '13px' }} disabled={!hasBalance} onClick={handleFinalAnchorSubmit}>
             <Zap size={15} fill="currentColor" /> Anchor claim · ${capitalStake} dUSD
           </Btn>
         </div>
