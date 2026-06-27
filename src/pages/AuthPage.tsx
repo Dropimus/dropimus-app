@@ -39,6 +39,10 @@ interface AuthPageProps {
 
 export function AuthPage({ onLoginSuccess }: AuthPageProps) {
   const isManualConnectingRef = React.useRef(false);
+  // Address we've already kicked off a SIWE nonce for. AppKit's subscribeAccount
+  // fires many times per connect (account/balance/identity/network syncs); without
+  // this guard each emit refetches /auth/wallet/nonce and the backend 429s us.
+  const siweTriggeredAddrRef = React.useRef<string>('');
   // Navigation & Terms View States
   const [viewingTerms, setViewingTerms] = useState(false);
 
@@ -123,13 +127,21 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
           if (state.isConnected && state.address) {
             setWalletConnected(true);
             setCustomAddress(state.address);
-            
+
+            // Only fetch a nonce once per address — ignore the repeated emits
+            // AppKit fires for the same account (prevents the 429 flood).
+            if (siweTriggeredAddrRef.current.toLowerCase() === state.address.toLowerCase()) {
+              return;
+            }
+            siweTriggeredAddrRef.current = state.address;
+
             const currWallet = DropimusProtocolAPI.getWallet();
             const hasToken = !!localStorage.getItem('dropimus_jwt_access_token');
             const forceShowSIWE = !currWallet.connected || !hasToken || currWallet.address !== state.address;
 
             triggerSIWEWithAddress(state.address, isManualConnectingRef.current || forceShowSIWE);
           } else {
+            siweTriggeredAddrRef.current = '';
             const currWallet = DropimusProtocolAPI.getWallet();
             if (!currWallet.connected) {
               setWalletConnected(false);
