@@ -347,6 +347,7 @@ export default function App() {
         setIsLoading(false);
       } else {
         setAuthenticated(false);
+        setIsLoading(false);
       }
 
       setIsAuthVerifying(false);
@@ -454,7 +455,9 @@ export default function App() {
         <AuthPage onLoginSuccess={async () => {
           setIsAuthVerifying(true);
           setAuthenticated(true);
+          setIsLoading(true);
           await refreshState();
+          setIsLoading(false);
           setIsAuthVerifying(false);
         }} />
       </div>
