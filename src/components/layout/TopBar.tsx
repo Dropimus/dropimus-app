@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { C, FONTS } from '../../tokens';
 import { LogoWordmark, IconHonor, IconCourt, IconAnchor, IconRank, IconProfile } from '../icons';
-import DropimusProtocolAPI, { GoogleUser, Wallet } from '../../lib/walletAndGoogle';
+import { GoogleUser, Wallet } from '../../lib/walletAndGoogle';
 import { API_BASE } from '../../lib/apiBase';
 import { Btn } from '../shared/Btn';
 interface TopBarProps {
@@ -53,7 +53,6 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
 
   const handleToggleGoogle = () => {
     if (googleUser.loggedIn) {
-      DropimusProtocolAPI.logoutWithGoogle();
       onUpdate();
     } else {
       fetch(`${API_BASE}/api/auth/google/login`)
@@ -75,11 +74,6 @@ export function TopBar({ wallet, googleUser, onUpdate, activePage, setActivePage
   };
 
   const handleToggleWallet = () => {
-    if (wallet.connected) {
-      DropimusProtocolAPI.disconnectWallet();
-    } else {
-      DropimusProtocolAPI.connectWallet();
-    }
     onUpdate();
   };
 

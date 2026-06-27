@@ -20,7 +20,7 @@ import {
 } from '../components/icons';
 import { CLAIM_TYPES, METRICS, RELATIVE_WINDOWS, PROOF_TYPES } from '../data';
 import Btn from '../components/shared/Btn';
-import DropimusProtocolAPI, { Claim, getAppKit } from '../lib/walletAndGoogle';
+import { Claim, getAppKit } from '../lib/walletAndGoogle';
 import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
 import { API_BASE } from '../lib/apiBase';
 
@@ -120,7 +120,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
                   console.warn("AppKit.open failed: ", e);
                 }
               } else {
-                DropimusProtocolAPI.connectWallet();
+                console.warn("Unable to open wallet connection flow: AppKit unavailable.");
               }
             }}
           >
@@ -162,14 +162,6 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
   const [proofTitle, setProofTitle] = useState<string>('');
   const [proofContent, setProofContent] = useState<string>('');
   const [proofMediaUrl, setProofMediaUrl] = useState<string>('');
-
-  // Local Tx verification state caching to bypass indexing latencies or backend fallbacks
-  const [localApproved, setLocalApproved] = useState<boolean>(() => {
-    return localStorage.getItem('dropimus_local_approved_treasury') === 'true';
-  });
-  const [localMinted, setLocalMinted] = useState<boolean>(() => {
-    return localStorage.getItem('dropimus_local_minted_dusd') === 'true';
-  });
 
   // Success details storage
   const [successClaimHash, setSuccessClaimHash] = useState<string>('');
@@ -251,10 +243,13 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
   const runPreflightCheck = async (stakeAmount: number) => {
     setPreflightState('checking');
     setPreflightError('');
-    const isApprovedLocally = localStorage.getItem('dropimus_local_approved_treasury') === 'true';
-    const isMintedLocally = localStorage.getItem('dropimus_local_minted_dusd') === 'true';
+    setPreflightData(null);
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
+      if (!token) {
+        throw new Error('Authentication token missing. Please sign in again.');
+      }
+
       const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${stakeAmount}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -264,48 +259,22 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         throw new Error(`Preflight check failed (HTTP ${res.status})`);
       }
       const json = await res.json();
-      if (json && json.success) {
-        const mergedData = {
-          ...json.data,
-          has_allowance: json.data.has_allowance || isApprovedLocally,
-          has_balance: json.data.has_balance || isMintedLocally,
-          ready: (json.data.has_allowance || isApprovedLocally) && (json.data.has_balance || isMintedLocally)
-        };
-        setPreflightData(mergedData);
-        if (mergedData.ready) {
-          setPreflightState('ready');
-          setStep(4);
-        } else {
-          setPreflightState('not_ready');
-        }
-      } else {
-        throw new Error(json?.detail || 'Preflight un-successful.');
+      if (!json || json.success === false || !json.data) {
+        throw new Error(json?.detail || 'Preflight response invalid.');
       }
-    } catch (err: any) {
-      console.warn("Preflight server check failed, applying sandbox fallback:", err);
-      // Fail-safes fallback
-      const hasBal = isMintedLocally || (walletBalanceUSDC >= stakeAmount);
-      const hasAll = isApprovedLocally;
-      const mockData = {
-        address: wallet?.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4',
-        treasury_address: '0x32353da725814b01a90db31e08e025f4a1b2c3d4',
-        mock_usdc_address: '0x12353da725814b01a90db31e08e025f4a1b2c3d4',
-        balance_units: Math.round(walletBalanceUSDC * 1000000) || 12000000,
-        allowance_units: hasAll ? Math.round(stakeAmount * 1000000) : 0,
-        required_units: Math.round(stakeAmount * 1000000),
-        balance_usdc: walletBalanceUSDC || 12,
-        allowance_usdc: hasAll ? stakeAmount : 0,
-        required_usdc: stakeAmount,
-        has_balance: hasBal,
-        has_allowance: hasAll,
-        ready: hasBal && hasAll
-      };
-      setPreflightData(mockData);
-      setPreflightState('not_ready');
-      if (mockData.ready) {
+
+      setPreflightData(json.data);
+      if (json.data.ready) {
         setPreflightState('ready');
         setStep(4);
+      } else {
+        setPreflightState('not_ready');
       }
+    } catch (err: any) {
+      console.error('Preflight server check failed:', err);
+      setPreflightState('not_ready');
+      setPreflightError(err?.message || 'Preflight verification failed. Please refresh and try again.');
+      setPreflightData(null);
     }
   };
 
@@ -326,11 +295,13 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         throw new Error("No active EIP-1193 Web3 provider found. Please connect your wallet.");
       }
       const rawUserAddr = wallet?.address || preflightData.address;
-      const userAddr = sanitizeEtherAddress(rawUserAddr, '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4');
+      const userAddr = sanitizeEtherAddress(rawUserAddr, preflightData.address);
       const requiredUnits = preflightData.required_units;
+      if (!preflightData.mock_usdc_address) {
+        throw new Error('Missing USDC contract address from backend preflight data.');
+      }
       const mintCalldata = encodeCalldata('0x40c10f19', userAddr, requiredUnits);
-      
-      const mockUsdcAddr = sanitizeEtherAddress(preflightData.mock_usdc_address, '0x12353da725814b01a90db31e08e025f4a1b2c3d4');
+      const mockUsdcAddr = sanitizeEtherAddress(preflightData.mock_usdc_address, preflightData.mock_usdc_address);
 
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
@@ -341,8 +312,6 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         }]
       });
       setPreflightError(`Mint TX broadcast successfully! Hash: ${txHash.slice(0, 15)}... Waiting 6 seconds for confirmation...`);
-      localStorage.setItem('dropimus_local_minted_dusd', 'true');
-      setLocalMinted(true);
       await new Promise(resolve => setTimeout(resolve, 6000));
       await runPreflightCheck(capitalStake);
     } catch (err: any) {
@@ -362,13 +331,17 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         throw new Error("No active EIP-1193 Web3 provider found. Please connect your wallet.");
       }
       const rawUserAddr = wallet?.address || preflightData.address;
-      const userAddr = sanitizeEtherAddress(rawUserAddr, '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4');
+      const userAddr = sanitizeEtherAddress(rawUserAddr, preflightData.address);
       const requiredUnits = preflightData.required_units;
-      
-      const treasuryAddr = sanitizeEtherAddress(preflightData.treasury_address, '0x32353da725814b01a90db31e08e025f4a1b2c3d4');
+      if (!preflightData.treasury_address) {
+        throw new Error('Missing treasury contract address from backend preflight data.');
+      }
+      if (!preflightData.mock_usdc_address) {
+        throw new Error('Missing USDC contract address from backend preflight data.');
+      }
+      const treasuryAddr = sanitizeEtherAddress(preflightData.treasury_address, preflightData.treasury_address);
       const approveCalldata = encodeCalldata('0x095ea7b3', treasuryAddr, requiredUnits);
-
-      const mockUsdcAddr = sanitizeEtherAddress(preflightData.mock_usdc_address, '0x12353da725814b01a90db31e08e025f4a1b2c3d4');
+      const mockUsdcAddr = sanitizeEtherAddress(preflightData.mock_usdc_address, preflightData.mock_usdc_address);
 
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
@@ -379,8 +352,6 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         }]
       });
       setPreflightError(`Approval TX broadcast successfully! Hash: ${txHash.slice(0, 15)}... Waiting 6 seconds for confirmation...`);
-      localStorage.setItem('dropimus_local_approved_treasury', 'true');
-      setLocalApproved(true);
       await new Promise(resolve => setTimeout(resolve, 6000));
       await runPreflightCheck(capitalStake);
     } catch (err: any) {
@@ -403,24 +374,33 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
 
     try {
       const token = localStorage.getItem('dropimus_jwt_access_token') || '';
+      if (!token) {
+        throw new Error('Authentication token missing. Please sign back in.');
+      }
       const preflightRes = await fetch(`${API_BASE}/api/claims/preflight?amount=${capitalStake}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (preflightRes.ok) {
-        const json = await preflightRes.json();
-        if (json && json.success && !json.data.ready) {
-          setPreflightData(json.data);
-          setPreflightState('not_ready');
-          setStep(3); // Redirect back to step 3 so they see the preflight interface
-          setSigningStage('idle');
-          setSigningMessage('');
-          return;
-        }
+      if (!preflightRes.ok) {
+        throw new Error(`Preflight verification failed (HTTP ${preflightRes.status}).`);
       }
-    } catch (e) {
-      console.warn("Backend preflight check failed during submit, continuing anyway with standard workflow...", e);
+      const json = await preflightRes.json();
+      if (!json || json.success === false || !json.data) {
+        throw new Error(json?.detail || 'Preflight verification failed.');
+      }
+      if (!json.data.ready) {
+        setPreflightData(json.data);
+        setPreflightState('not_ready');
+        setStep(3); // Redirect back to step 3 so they see the preflight interface
+        setSigningStage('idle');
+        setSigningMessage('');
+        return;
+      }
+    } catch (e: any) {
+      setSigningStage('error');
+      setSigningMessage(`Preflight check failed: ${e?.message || 'Unable to verify stake readiness.'}`);
+      return;
     }
 
     setSigningMessage('Initializing AppKit standard USDC approval...');

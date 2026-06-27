@@ -4,7 +4,7 @@
  */
 
 /**
- * Dropimus API client for real and simulated integrations.
+ * Dropimus API client for backend-integrated Dropimus services.
  * Mirrors the exact Python test script endpoints.
  */
 
@@ -62,101 +62,23 @@ export class DropimusAPI {
    * 1. GET /api/auth/wallet/nonce
    */
   static async getNonce(chain: string, address: string): Promise<NonceResponse> {
-    try {
-      const baseUrl = this.getBaseUrl();
-      const url = `${baseUrl}/api/auth/wallet/nonce?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`;
-      // Always pass credentials: 'include' in sandbox frame context
-      const res = await fetch(url, { credentials: 'include' }).catch(err => {
-        console.warn("DropimusAPI: Fetch request failed. Falling back to simulated nonce.", err);
-        return null;
-      });
-
-      if (!res) {
-        return {
-          success: true,
-          data: {
-            nonce: 'sim_nonce_' + Math.random().toString(36).substring(2, 10),
-            issued_at: new Date().toISOString()
-          }
-        };
-      }
-      
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        if (res.status === 401 || res.status === 403) {
-          console.warn(`DropimusAPI: Nonce fetch got HTTP ${res.status}. Falling back to simulated nonce.`);
-          return {
-            success: true,
-            data: {
-              nonce: 'sim_nonce_' + Math.random().toString(36).substring(2, 10),
-              issued_at: new Date().toISOString()
-            }
-          };
-        }
-        throw new Error(`JSON_PARSE_ERROR: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)} (HTTP ${res.status})`);
-      }
-      
-      if (!res.ok || !data.success) {
-        if (res.status === 401 || res.status === 403) {
-          console.warn(`DropimusAPI: Nonce fetch rejected with HTTP ${res.status} (${data.detail || data.message || ''}). Falling back to simulated nonce.`);
-          return {
-            success: true,
-            data: {
-              nonce: 'sim_nonce_' + Math.random().toString(36).substring(2, 10),
-              issued_at: new Date().toISOString()
-            }
-          };
-        }
-
-        const errMsg = data.detail || data.message || '';
-        // Self-heal: If chain is unsupported, parse allowed chains from the response and retry
-        if (errMsg.includes('Supported:')) {
-          const match = errMsg.match(/Supported:\s*([a-zA-Z0-9_,\s]+)/);
-          if (match && match[1]) {
-            const supported = match[1].split(',').map((s: string) => s.trim());
-            if (supported.length > 0) {
-              const retryChain = supported.includes('base') ? 'base' : (supported.includes('ethereum') ? 'ethereum' : supported[0]);
-              console.log(`DropimusAPI: Retrying nonce with backend supported chain: ${retryChain}`);
-              const retryUrl = `${baseUrl}/api/auth/wallet/nonce?chain=${encodeURIComponent(retryChain)}&address=${encodeURIComponent(address)}`;
-              const retryRes = await fetch(retryUrl, { credentials: 'include' }).catch(() => null);
-              if (retryRes) {
-                let retryData: any;
-                try {
-                  retryData = await retryRes.json();
-                } catch {
-                  throw new Error(`JSON_PARSE_ERROR on retry (HTTP ${retryRes.status})`);
-                }
-                if (retryRes.ok && retryData.success) {
-                  // Return data with retry chain injected so the caller knows which succeeded
-                  if (retryData.data) {
-                    retryData.data.chain = retryChain;
-                  }
-                  return retryData;
-                }
-              }
-            }
-          }
-        }
-        throw new Error(errMsg || `HTTP ${res.status}`);
-      }
-      
-      if (data.data) {
-        data.data.chain = chain;
-      }
-      return data;
-    } catch (err) {
-      console.error("DropimusAPI: Live nonce fetch failed.", err);
-      console.warn("DropimusAPI: Self-healing with a simulated nonce fallback to keep app fully operational.");
-      return {
-        success: true,
-        data: {
-          nonce: 'sim_nonce_' + Math.random().toString(36).substring(2, 10),
-          issued_at: new Date().toISOString()
-        }
-      };
+    const baseUrl = this.getBaseUrl();
+    const url = `${baseUrl}/api/auth/wallet/nonce?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to fetch nonce: HTTP ${res.status} ${body}`);
     }
+
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Nonce request failed');
+    }
+
+    if (data.data) {
+      data.data.chain = chain;
+    }
+    return data;
   }
 
   /**
@@ -169,105 +91,24 @@ export class DropimusAPI {
     message: string;
     signed_message: string;
   }): Promise<AuthResponse> {
-    try {
-      if (payload.nonce.startsWith('sim')) {
-        console.warn("DropimusAPI: Utilizing simulated nonce fallback for wallet-auth.");
-        const mockToken = "simulated_jwt_" + Math.random().toString(36).substring(2, 10);
-        return {
-          success: true,
-          data: {
-            access_token: mockToken,
-            refresh_token: mockToken,
-            user: {
-              username: `Anonymity Wallet #${payload.address.slice(2, 6).toUpperCase()}`,
-              address: payload.address
-            }
-          }
-        };
-      }
+    const res = await fetch(`${this.getBaseUrl()}/api/auth/wallet-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
 
-      const res = await fetch(`${this.getBaseUrl()}/api/auth/wallet-auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      }).catch(err => {
-        console.warn("DropimusAPI: Wallet-auth network request failed. Falling back to simulation.", err);
-        return null;
-      });
-      
-      if (!res) {
-        const mockToken = "simulated_jwt_" + Math.random().toString(36).substring(2, 10);
-        return {
-          success: true,
-          data: {
-            access_token: mockToken,
-            refresh_token: mockToken,
-            user: {
-              username: `Anonymity Wallet #${payload.address.slice(2, 6).toUpperCase()}`,
-              address: payload.address
-            }
-          }
-        };
-      }
-
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        if (res.status === 401 || res.status === 403) {
-          console.warn(`DropimusAPI: Wallet-auth got HTTP ${res.status}. Falling back to simulation.`);
-          const mockToken = "simulated_jwt_" + Math.random().toString(36).substring(2, 10);
-          return {
-            success: true,
-            data: {
-              access_token: mockToken,
-              refresh_token: mockToken,
-              user: {
-                username: `Anonymity Wallet #${payload.address.slice(2, 6).toUpperCase()}`,
-                address: payload.address
-              }
-            }
-          };
-        }
-        throw new Error(`JSON_PARSE_ERROR: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)} (HTTP ${res.status})`);
-      }
-
-      if (!res.ok || !data.success) {
-        if (res.status === 401 || res.status === 403) {
-          console.warn(`DropimusAPI: Wallet-auth got HTTP ${res.status} (${data.detail || data.message || ''}). Falling back to simulation.`);
-          const mockToken = "simulated_jwt_" + Math.random().toString(36).substring(2, 10);
-          return {
-            success: true,
-            data: {
-              access_token: mockToken,
-              refresh_token: mockToken,
-              user: {
-                username: `Anonymity Wallet #${payload.address.slice(2, 6).toUpperCase()}`,
-                address: payload.address
-              }
-            }
-          };
-        }
-        throw new Error(data.detail || data.message || `Wallet authentication failed (HTTP ${res.status})`);
-      }
-      return data;
-    } catch (err) {
-      console.error("DropimusAPI: Live wallet-auth failed.", err);
-      console.warn("DropimusAPI: Self-healing with simulated auth fallback.");
-      const mockToken = "simulated_jwt_" + Math.random().toString(36).substring(2, 10);
-      return {
-        success: true,
-        data: {
-          access_token: mockToken,
-          refresh_token: mockToken,
-          user: {
-            username: `Anonymity Wallet #${payload.address.slice(2, 6).toUpperCase()}`,
-            address: payload.address
-          }
-        }
-      };
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Wallet authentication failed: HTTP ${res.status} ${body}`);
     }
+
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Wallet authentication failed');
+    }
+
+    return data;
   }
 
   /**
@@ -339,30 +180,63 @@ export class DropimusAPI {
    * 4. GET /api/claims/my
    */
   static async getMyClaims(accessToken: string): Promise<any> {
-    try {
-      const res = await fetch(`${this.getBaseUrl()}/api/claims/my`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch {
-      return { success: true, data: [] };
+    const res = await fetch(`${this.getBaseUrl()}/api/claims/my`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      return { success: false, detail: `HTTP ${res.status} ${body}` };
     }
+    return await res.json();
   }
 
   /**
    * 5. GET /api/claims/
    */
-  static async getPublicClaims(limit = 10): Promise<any> {
-    try {
-      const res = await fetch(`${this.getBaseUrl()}/api/claims/?limit=${limit}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch {
-      return { success: true, data: { claims: [] } };
+  private static normalizeClaimsResponse(data: any): { success: boolean; data: { claims: any[] } } {
+    const success = data?.success !== false && data?.ok !== false;
+
+    if (!data) {
+      return { success, data: { claims: [] } };
     }
+
+    if (Array.isArray(data)) {
+      return { success, data: { claims: data } };
+    }
+
+    if (Array.isArray(data.data)) {
+      return { success, data: { claims: data.data } };
+    }
+
+    if (data.data && Array.isArray(data.data.claims)) {
+      return { success, data: { claims: data.data.claims } };
+    }
+
+    if (Array.isArray(data.claims)) {
+      return { success, data: { claims: data.claims } };
+    }
+
+    if (Array.isArray(data.results)) {
+      return { success, data: { claims: data.results } };
+    }
+
+    if (Array.isArray(data.items)) {
+      return { success, data: { claims: data.items } };
+    }
+
+    return { success, data: { claims: [] } };
+  }
+
+  static async getPublicClaims(limit = 10): Promise<any> {
+    const res = await fetch(`${this.getBaseUrl()}/api/claims/?limit=${limit}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to fetch public claims: HTTP ${res.status} ${body}`);
+    }
+    const data = await res.json();
+    return this.normalizeClaimsResponse(data);
   }
 
   /**
@@ -427,183 +301,77 @@ export class DropimusAPI {
    * 9. GET /api/users/me — profile
    */
   static async getCurrentUser(accessToken: string): Promise<any> {
-    try {
-      if (!accessToken || accessToken.startsWith('simulated')) {
-        let userAddr = "0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4";
-        try {
-          const stored = localStorage.getItem('dropimus_protocol_wallet');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed && parsed.address) {
-              userAddr = parsed.address;
-            }
-          }
-        } catch {}
-        return {
-          success: true,
-          data: {
-            username: `Anonymity Wallet #${userAddr.slice(2, 6).toUpperCase()}`,
-            email: "dropimus@gmail.com",
-            full_name: `Anonymity Wallet #${userAddr.slice(2, 6).toUpperCase()}`,
-            address: userAddr,
-            auth_providers: ["wallet"],
-            is_verified: true
-          }
-        };
-      }
-
-      const res = await authFetch('/api/users/me').catch(err => {
-        console.warn("DropimusAPI: getCurrentUser network error. Falling back.", err);
-        return null;
-      });
-
-      if (!res) {
-        throw new Error("Network offline or fetch failed");
-      }
-
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        throw new Error(`JSON_PARSE_ERROR: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)} (HTTP ${res.status})`);
-      }
-      if (!res.ok || !data.success) {
-        throw new Error(data.detail || data.message || `Failed to fetch profile (HTTP ${res.status})`);
-      }
-      return data;
-    } catch (err) {
-      console.error("DropimusAPI: Live getCurrentUser failed.", err);
-      let userAddr = "0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4";
-      try {
-        const stored = localStorage.getItem('dropimus_protocol_wallet');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && parsed.address) {
-            userAddr = parsed.address;
-          }
-        }
-      } catch {}
-      return {
-        success: true,
-        data: {
-          username: `Anonymity Wallet #${userAddr.slice(2, 6).toUpperCase()}`,
-          email: "dropimus@gmail.com",
-          full_name: `Anonymity Wallet #${userAddr.slice(2, 6).toUpperCase()}`,
-          address: userAddr,
-          auth_providers: ["wallet"],
-          is_verified: true
-        }
-      };
+    if (!accessToken) {
+      throw new Error('Missing access token for current user lookup');
     }
+
+    const res = await authFetch('/api/users/me');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to fetch current user: HTTP ${res.status} ${body}`);
+    }
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Failed to fetch current user');
+    }
+    return data;
   }
 
   /**
    * 10. PUT /api/users/me — update profile
    */
   static async updateCurrentUser(payload: { username?: string; email?: string; full_name?: string }, accessToken: string): Promise<any> {
-    try {
-      if (!accessToken || accessToken.startsWith('simulated')) {
-        return {
-          success: true,
-          data: {
-            username: payload.username || "Anonymity Wallet",
-            email: payload.email || "dropimus@gmail.com",
-            full_name: payload.full_name || "Anonymity Wallet"
-          }
-        };
-      }
-
-      const res = await fetch(`${this.getBaseUrl()}/api/users/me`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      }).catch(err => {
-        console.warn("DropimusAPI: updateCurrentUser network error. Falling back.", err);
-        return null;
-      });
-
-      if (!res) {
-        throw new Error("Network offline or fetch failed");
-      }
-
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        throw new Error(`JSON_PARSE_ERROR: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)} (HTTP ${res.status})`);
-      }
-      if (!res.ok || !data.success) {
-        throw new Error(data.detail || data.message || `Failed to update profile (HTTP ${res.status})`);
-      }
-      return data;
-    } catch (err) {
-      console.error("DropimusAPI: Live updateCurrentUser failed.", err);
-      return {
-        success: true,
-        data: {
-          username: payload.username || "Anonymity Wallet",
-          email: payload.email || "dropimus@gmail.com",
-          full_name: payload.full_name || "Anonymity Wallet"
-        }
-      };
+    if (!accessToken) {
+      throw new Error('Missing access token for user update');
     }
+
+    const res = await fetch(`${this.getBaseUrl()}/api/users/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to update current user: HTTP ${res.status} ${body}`);
+    }
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Failed to update current user');
+    }
+    return data;
   }
 
   /**
    * 11. GET /api/users/me/verification-status — checklist
    */
   static async getVerificationStatus(accessToken: string): Promise<any> {
-    try {
-      if (!accessToken || accessToken.startsWith('simulated')) {
-        return {
-          success: true,
-          data: {
-            is_verified: true,
-            email_verified: true,
-            wallet_connected: true
-          }
-        };
-      }
-
-      const res = await fetch(`${this.getBaseUrl()}/api/users/me/verification-status`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
-        credentials: 'include'
-      }).catch(err => {
-        console.warn("DropimusAPI: getVerificationStatus network error. Falling back.", err);
-        return null;
-      });
-
-      if (!res) {
-        throw new Error("Network offline or fetch failed");
-      }
-
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        throw new Error(`JSON_PARSE_ERROR: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)} (HTTP ${res.status})`);
-      }
-      if (!res.ok || !data.success) {
-        throw new Error(data.detail || data.message || `Failed to fetch verification status (HTTP ${res.status})`);
-      }
-      return data;
-    } catch (err) {
-      console.error("DropimusAPI: Live getVerificationStatus failed.", err);
-      return {
-        success: true,
-        data: {
-          is_verified: true,
-          email_verified: true,
-          wallet_connected: true
-        }
-      };
+    if (!accessToken) {
+      throw new Error('Authentication token missing for verification status.');
     }
+
+    const res = await fetch(`${this.getBaseUrl()}/api/users/me/verification-status`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      },
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(body || `Failed to fetch verification status (HTTP ${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Verification status response invalid.');
+    }
+
+    return data;
   }
 }
 
@@ -628,28 +396,28 @@ export async function signUSDCApprovalAndDeposit(
     onProgress('Verifying on-chain preflight requirements...', 'approve');
 
     try {
-      if (accessToken) {
-        const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${usdcAmount}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && json.success && json.data) {
-            treasuryAddr = json.data.treasury_address || treasuryAddr;
-            mockUsdcAddr = json.data.mock_usdc_address || mockUsdcAddr;
-            if (json.data.required_units) {
-              reqUnits = BigInt(json.data.required_units);
-            }
-            if (json.data.has_allowance) {
-              skipApproval = true;
-            }
-          }
+      const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${usdcAmount}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
         }
+      });
+      if (!res.ok) {
+        throw new Error(`Preflight query failed (HTTP ${res.status})`);
       }
-    } catch (e) {
-      console.warn("Failed to fetch preflight during signing, using default configs:", e);
+      const json = await res.json();
+      if (!json || json.success === false || !json.data) {
+        throw new Error(json?.detail || 'Invalid preflight response.');
+      }
+      treasuryAddr = json.data.treasury_address || treasuryAddr;
+      mockUsdcAddr = json.data.mock_usdc_address || mockUsdcAddr;
+      if (json.data.required_units) {
+        reqUnits = BigInt(json.data.required_units);
+      }
+      if (json.data.has_allowance) {
+        skipApproval = true;
+      }
+    } catch (e: any) {
+      throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
     }
 
     const { getAppKit } = await import('./walletAndGoogle');

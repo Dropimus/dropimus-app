@@ -14,11 +14,10 @@ import HonorPage from './pages/HonorPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
-import DropimusProtocolAPI, { Claim, Wallet, GoogleUser, getAppKit } from './lib/walletAndGoogle';
+import { Claim, Wallet, GoogleUser } from './lib/walletAndGoogle';
 import { DropimusAPI } from './lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkeleton } from './components/shared/SkeletonLoader';
-import { getCachedClaims, saveClaimsToCache } from './lib/claimsCache';
 import { API_BASE } from './lib/apiBase';
 import { authFetch, onSessionExpired } from './lib/authClient';
 
@@ -108,11 +107,6 @@ export default function App() {
   // Sync theme attribute to HTML
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    try {
-      localStorage.setItem('dropimus_theme', 'dark');
-    } catch (e) {
-      console.warn("Theme saving failed:", e);
-    }
   }, []);
   
   // Responsive State
@@ -135,44 +129,32 @@ export default function App() {
   const [claimsList, setClaimsList] = useState<Claim[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthVerifying, setIsAuthVerifying] = useState<boolean>(true);
+  const [authenticated, setAuthenticated] = useState<boolean>(false);
+
+  const isAuthStatusSuccess = (data: any): boolean => {
+    if (!data) return false;
+    if (data.authenticated === true) return true;
+    if (data.success === true) return true;
+    if (data.ok === true) return true;
+    if (data.user) return true;
+    return false;
+  };
 
   // Clear session forcefully on client-side status failure
   const handleForceCleanSession = () => {
     localStorage.removeItem('dropimus_jwt_access_token');
     localStorage.removeItem('dropimus_jwt_refresh_token');
-    DropimusProtocolAPI.logoutWithGoogle();
-    DropimusProtocolAPI.disconnectWallet();
-    
     setGoogleUser({ loggedIn: false, name: '', email: '', avatar: '' });
     setWallet({ connected: false, address: '', balanceUSDC: 0, balanceHonor: 0, tier: '' });
+    setClaimsList([]);
+    setAuthenticated(false);
   };
 
   // Initialize and synchronise baseline caches
   const refreshState = async () => {
-    // Run DB prep
-    DropimusProtocolAPI.initialize();
-    
-    // Fetch values synchronously first for instant UI response
-    const w = DropimusProtocolAPI.getWallet();
-    const g = DropimusProtocolAPI.getGoogleUser();
+    // Fetch live public claims from the backend
+    setClaimsList([]);
 
-    setWallet(w);
-    setGoogleUser(g);
-
-    // High performance load: Check IndexedDB cache first of actual live API claims
-    try {
-      const cachedClaims = await getCachedClaims();
-      if (cachedClaims && cachedClaims.length > 0) {
-        setClaimsList(cachedClaims);
-      } else {
-        setClaimsList([]);
-      }
-    } catch (cacheErr) {
-      console.warn("App: IndexedDB retrieval error, falling back to empty:", cacheErr);
-      setClaimsList([]);
-    }
-
-    // Try loaded live public claims from real backend endpoints
     try {
       const liveRes = await DropimusAPI.getPublicClaims();
       if (liveRes && liveRes.success && liveRes.data && liveRes.data.claims) {
@@ -207,15 +189,14 @@ export default function App() {
           };
         });
         setClaimsList(liveClaims);
-        localStorage.setItem('dropimus_protocol_claims', JSON.stringify(liveClaims));
-        // Persist to IndexedDB cache
-        await saveClaimsToCache(liveClaims);
+      } else {
+        setClaimsList([]);
       }
     } catch (err) {
-      console.warn("Could not fetch live claims from backend, using LocalStorage.", err);
+      console.warn("Could not fetch live claims from backend:", err);
+      setClaimsList([]);
     }
 
-    // Dynamic backend configuration: sync real user details and honor balances
     const token = localStorage.getItem('dropimus_jwt_access_token');
     if (token) {
       try {
@@ -226,29 +207,23 @@ export default function App() {
 
         if (meRes && meRes.success && meRes.data) {
           const uData = meRes.data;
-          setGoogleUser(prev => {
-            const nextUsr = {
-              ...prev,
-              loggedIn: true,
-              name: uData.full_name || uData.username || prev.name,
-              email: uData.email || prev.email,
-            };
-            localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(nextUsr));
-            return nextUsr;
-          });
+          setGoogleUser(prev => ({
+            ...prev,
+            loggedIn: true,
+            name: uData.full_name || uData.username || prev.name,
+            email: uData.email || prev.email,
+          }));
 
           setWallet(prev => {
             const updated = {
               ...prev,
               connected: true,
-              address: (uData.auth_providers?.includes("wallet") || uData.is_verified) ? (prev.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') : prev.address,
+              address: (uData.auth_providers?.includes('wallet') || uData.is_verified) ? (prev.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') : prev.address,
             };
             if (usageRes && usageRes.success && usageRes.data) {
               updated.balanceHonor = usageRes.data.honor_status?.balance ?? updated.balanceHonor;
               updated.tier = usageRes.data.honor_status?.title ?? updated.tier;
             }
-            localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(updated));
-            DropimusProtocolAPI.saveWallet(updated);
             return updated;
           });
         }
@@ -260,128 +235,28 @@ export default function App() {
 
   useEffect(() => {
     const initAuthAndState = async () => {
-      // 1. Instantly restore and display local credentials to completely bypass initial loading screens
-      DropimusProtocolAPI.initialize();
-      const cachedWallet = DropimusProtocolAPI.getWallet();
-      const cachedGoogleUser = DropimusProtocolAPI.getGoogleUser();
+      setWallet({ connected: false, address: '', balanceUSDC: 0, balanceHonor: 0, tier: '' });
+      setGoogleUser({ loggedIn: false, name: '', email: '', avatar: '' });
 
-      setWallet(cachedWallet);
-      setGoogleUser(cachedGoogleUser);
+      let isAuthenticated = false;
+      let authWallet: Wallet | null = null;
+      let authGoogleUser: GoogleUser | null = null;
 
-      // Live sync with AppKit state in real-time
-      getAppKit().then(kit => {
-        if (kit) {
-          kit.subscribeAccount((state: any) => {
-            setWallet(prev => {
-              const currentObj = DropimusProtocolAPI.getWallet();
-              let updated = false;
-              const nextWallet = { ...currentObj };
-
-              if (state.isConnected && state.address) {
-                if (!nextWallet.connected || nextWallet.address !== state.address) {
-                  nextWallet.connected = true;
-                  nextWallet.address = state.address;
-                  DropimusProtocolAPI.saveWallet(nextWallet);
-                  updated = true;
-                }
-              } else if (!state.isConnected && nextWallet.connected) {
-                nextWallet.connected = false;
-                if (nextWallet.address !== '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') {
-                  nextWallet.address = '';
-                }
-                DropimusProtocolAPI.saveWallet(nextWallet);
-                updated = true;
-              }
-
-              return updated ? nextWallet : prev;
-            });
-          });
-        }
-      });
-
-      // Persistent standard EIP-1193 provider event listener for instant browser-wallet account synchronization
-      if (typeof window !== 'undefined' && (window as any).ethereum) {
-        const ethereum = (window as any).ethereum;
-
-        const handleAccountsChanged = (accounts: string[]) => {
-          console.log("dropimus_debugger: EIP-1193 accountsChanged event received:", accounts);
-          setWallet(prev => {
-            const currentObj = DropimusProtocolAPI.getWallet();
-            const nextWallet = { ...currentObj };
-
-            if (accounts && accounts.length > 0) {
-              const nextAddress = accounts[0];
-              if (!nextWallet.connected || nextWallet.address.toLowerCase() !== nextAddress.toLowerCase()) {
-                nextWallet.connected = true;
-                nextWallet.address = nextAddress;
-                DropimusProtocolAPI.saveWallet(nextWallet);
-                return nextWallet;
-              }
-            } else {
-              if (nextWallet.connected) {
-                nextWallet.connected = false;
-                if (nextWallet.address !== '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') {
-                  nextWallet.address = '';
-                }
-                DropimusProtocolAPI.saveWallet(nextWallet);
-                return nextWallet;
-              }
-            }
-            return prev;
-          });
-        };
-
-        const handleChainChanged = () => {
-          console.log("dropimus_debugger: EIP-1193 chainChanged event received");
-          refreshState();
-        };
-
-        ethereum.on('accountsChanged', handleAccountsChanged);
-        ethereum.on('chainChanged', handleChainChanged);
-
-        // Run initial immediate sync check in case there was already an unlocked session
-        ethereum.request({ method: 'eth_accounts' })
-          .then((accounts: string[]) => {
-            if (accounts && accounts.length > 0) {
-              const currentObj = DropimusProtocolAPI.getWallet();
-              if (currentObj.connected && currentObj.address.toLowerCase() !== accounts[0].toLowerCase()) {
-                const nextWallet = { ...currentObj, connected: true, address: accounts[0] };
-                DropimusProtocolAPI.saveWallet(nextWallet);
-                setWallet(nextWallet);
-                refreshState();
-              }
-            }
-          })
-          .catch((err: any) => console.warn("Error checking initial eth_accounts", err));
-      }
-
-      // 2. Pre-populate claim lists instantly from IndexedDB cache of actual live claims
-      try {
-        const cached = await getCachedClaims();
-        if (cached && cached.length > 0) {
-          setClaimsList(cached);
-        } else {
-          setClaimsList([]);
-        }
-      } catch (err) {
-        setClaimsList([]);
-      }
-
-      // 3. Detect OAuth redirect callbacks
       const params = new URLSearchParams(window.location.search);
       const sessionToken = params.get('session_token');
       const oauthSuccess = params.get('oauth_success');
-      
       const isCallbackFlow = !!(sessionToken && oauthSuccess === '1');
-      
+
       if (isCallbackFlow) {
-        // Only trigger a blocking spinner for genuine active OAuth redirects
-        setIsLoading(true);
         setIsAuthVerifying(true);
+        setIsLoading(true);
         window.history.replaceState({}, document.title, window.location.pathname);
-        
+
         try {
-          const res = await fetch(`${API_BASE}/api/auth/exchange?token=${encodeURIComponent(sessionToken)}`);
+          const res = await fetch(`${API_BASE}/api/auth/exchange?token=${encodeURIComponent(sessionToken)}`, {
+            credentials: 'include'
+          });
+
           if (res.ok) {
             const exchangeData = await res.json();
             if (exchangeData.ok && exchangeData.user) {
@@ -389,28 +264,26 @@ export default function App() {
               if (exchangeData.refresh_token) {
                 localStorage.setItem('dropimus_jwt_refresh_token', exchangeData.refresh_token);
               }
-              
-              const googleUsr: GoogleUser = {
+
+              authGoogleUser = {
                 loggedIn: true,
-                name: exchangeData.user.fullName || exchangeData.user.username || "Google User",
-                email: exchangeData.user.email || "",
+                name: exchangeData.user.full_name || exchangeData.user.fullName || exchangeData.user.username || 'Google User',
+                email: exchangeData.user.email || '',
                 avatar: exchangeData.user.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
               };
-              localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(googleUsr));
-              setGoogleUser(googleUsr);
-              
+
               if (exchangeData.user.wallets && exchangeData.user.wallets.length > 0) {
                 const primaryWallet = exchangeData.user.wallets.find((w: any) => w.isPrimary) || exchangeData.user.wallets[0];
-                const wObj: Wallet = {
+                authWallet = {
                   connected: true,
                   address: primaryWallet.address,
-                  balanceUSDC: 450,
-                  balanceHonor: 340,
-                  tier: 'Contributor'
+                  balanceUSDC: 0,
+                  balanceHonor: 0,
+                  tier: 'Novice'
                 };
-                localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(wObj));
-                setWallet(wObj);
               }
+
+              isAuthenticated = true;
             } else {
               handleForceCleanSession();
             }
@@ -418,69 +291,77 @@ export default function App() {
             handleForceCleanSession();
           }
         } catch (exchangeErr) {
-          console.error("App: Google token exchange failed", exchangeErr);
+          console.error('App: Google token exchange failed', exchangeErr);
           handleForceCleanSession();
         }
-
-        await refreshState();
-        setIsLoading(false);
-        setIsAuthVerifying(false);
       } else {
-        // Active session or fresh entry without callback: Render UI instantly 
-        setIsLoading(false);
-        setIsAuthVerifying(false);
-
-        // Fetch live consensus claims in background
-        refreshState();
-
-        // Check backend session validity in backchannel
-        if (cachedWallet.connected || cachedGoogleUser.loggedIn) {
+        const token = localStorage.getItem('dropimus_jwt_access_token');
+        if (token) {
           try {
-            // signOutOnFailure:false — on first load, a failed refresh shouldn't
-            // immediately bounce the user; the periodic check resolves it.
             const statusRes = await authFetch('/api/auth/status', {}, { signOutOnFailure: false });
             if (statusRes.ok) {
               const sData = await statusRes.json();
-              if (sData.authenticated && sData.user) {
+              if (isAuthStatusSuccess(sData)) {
                 if (sData.access_token) {
                   localStorage.setItem('dropimus_jwt_access_token', sData.access_token);
                 }
                 if (sData.refresh_token) {
                   localStorage.setItem('dropimus_jwt_refresh_token', sData.refresh_token);
                 }
-                
-                const googleUsr: GoogleUser = {
-                  loggedIn: true,
-                  name: sData.user.fullName || sData.user.username || "Google User",
-                  email: sData.user.email || "",
-                  avatar: sData.user.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
-                };
-                localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(googleUsr));
-                setGoogleUser(googleUsr);
-                
-                if (sData.user.wallets && sData.user.wallets.length > 0) {
-                  const primaryWallet = sData.user.wallets.find((w: any) => w.isPrimary) || sData.user.wallets[0];
-                  const wObj: Wallet = {
-                    connected: true,
-                    address: primaryWallet.address,
-                    balanceUSDC: 450,
-                    balanceHonor: 340,
-                    tier: 'Contributor'
+
+                if (sData.user) {
+                  authGoogleUser = {
+                    loggedIn: true,
+                    name: sData.user.full_name || sData.user.fullName || sData.user.username || 'Google User',
+                    email: sData.user.email || '',
+                    avatar: sData.user.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
                   };
-                  localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(wObj));
-                  setWallet(wObj);
+
+                  if (sData.user.wallets && sData.user.wallets.length > 0) {
+                    const primaryWallet = sData.user.wallets.find((w: any) => w.isPrimary) || sData.user.wallets[0];
+                    authWallet = {
+                      connected: true,
+                      address: primaryWallet.address,
+                      balanceUSDC: 0,
+                      balanceHonor: 0,
+                      tier: 'Novice'
+                    };
+                  }
                 }
-              } else {
+
+                isAuthenticated = true;
+              } else if (sData.authenticated === false || sData.success === false || sData.ok === false) {
                 handleForceCleanSession();
               }
+            } else {
+              handleForceCleanSession();
             }
-            // A non-ok response (incl. a 401 that couldn't be refreshed) is left
-            // as-is on first load; the periodic check resolves a dead session.
           } catch (statusErr) {
-            console.warn("App: Background session verification silent ignore", statusErr);
+            console.warn('App: Background session verification silent ignore', statusErr);
+            handleForceCleanSession();
           }
+        } else {
+          handleForceCleanSession();
         }
       }
+
+      if (authGoogleUser) {
+        setGoogleUser(authGoogleUser);
+      }
+      if (authWallet) {
+        setWallet(authWallet);
+      }
+
+      if (isAuthenticated) {
+        setAuthenticated(true);
+        setIsLoading(true);
+        await refreshState();
+        setIsLoading(false);
+      } else {
+        setAuthenticated(false);
+      }
+
+      setIsAuthVerifying(false);
     };
 
     initAuthAndState();
@@ -500,9 +381,13 @@ export default function App() {
         const res = await authFetch('/api/auth/status');
         if (res.ok) {
           const sData = await res.json();
-          if (!sData.authenticated) {
-            console.warn("Session reported unauthenticated by backend. Signing out...");
-            handleSignOut();
+          if (!isAuthStatusSuccess(sData)) {
+            if (sData.authenticated === false || sData.success === false || sData.ok === false) {
+              console.warn("Session reported unauthenticated by backend. Signing out...");
+              handleSignOut();
+            } else {
+              console.warn("Session status returned an unknown success shape; preserving session.", sData);
+            }
           }
         } else {
           // Non-ok that isn't a recoverable 401 (e.g. 5xx): keep local session.
@@ -531,23 +416,19 @@ export default function App() {
     setInitialExpandCall(true);
   };
 
-  const handleAddClaim = (claim: Claim) => {
-    DropimusProtocolAPI.addClaim(claim);
-    refreshState();
-    // Anchor success page takes over local routing, then on-reset goes to step 1.
+  const handleAddClaim = async (claim: Claim) => {
+    await refreshState();
   };
 
   const handleSignOut = () => {
     fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' }).catch(() => {});
     localStorage.removeItem('dropimus_jwt_access_token');
     localStorage.removeItem('dropimus_jwt_refresh_token');
-    localStorage.removeItem('dropimus_local_approved_treasury');
-    localStorage.removeItem('dropimus_local_minted_dusd');
-    DropimusProtocolAPI.logoutWithGoogle();
-    DropimusProtocolAPI.disconnectWallet();
     setGoogleUser({ loggedIn: false, name: '', email: '', avatar: '' });
     setWallet({ connected: false, address: '', balanceUSDC: 0, balanceHonor: 0, tier: '' });
-    refreshState();
+    setClaimsList([]);
+    setAuthenticated(false);
+    window.history.replaceState({}, document.title, window.location.pathname);
   };
 
   // Find active claim object
@@ -590,8 +471,17 @@ export default function App() {
     );
   }
 
-  if (!wallet.connected && !googleUser.loggedIn) {
-    return <AuthPage onLoginSuccess={refreshState} />;
+  if (!authenticated) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.canvas, color: C.text, fontFamily: FONTS.body }}>
+        <AuthPage onLoginSuccess={async () => {
+          setIsAuthVerifying(true);
+          setAuthenticated(true);
+          await refreshState();
+          setIsAuthVerifying(false);
+        }} />
+      </div>
+    );
   }
 
   return (
@@ -632,6 +522,7 @@ export default function App() {
             claim={activeClaimObject}
             onBack={handleClearSelectedClaim}
             onUpdate={refreshState}
+            walletConnected={wallet.connected}
             walletBalanceHonor={wallet.balanceHonor}
             walletBalanceUSDC={wallet.balanceUSDC}
             initialExpand={initialExpandCall}

@@ -1,0 +1,8 @@
+claims are showing up on the logs but its not showing up on the frontend and there is no single skelton loader that is showing, fix that:  OK
+dropimus-web  | INFO:     127.0.0.1:44516 - "GET /health HTTP/1.1" 200 OK
+dropimus-web  | INFO:     127.0.0.1:54440 - "GET /health HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:39566 - "GET /auth/status HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:39582 - "GET /auth/status HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:39590 - "GET /claims/?limit=10 HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:57972 - "GET /claims/?limit=10 HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:57986 - "GET /claims/?limit=10 HTTP/1.1" 200 OK

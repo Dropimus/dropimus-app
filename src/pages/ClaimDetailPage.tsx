@@ -14,7 +14,6 @@ import TierBadge from '../components/shared/TierBadge';
 import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
 import { PROOF_TYPES } from '../data';
-import DropimusProtocolAPI from '../lib/walletAndGoogle';
 import { signUSDCApprovalAndDeposit, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import { StakeCalculator } from '../components/shared/StakeCalculator';
 import CountdownTimer from '../components/shared/CountdownTimer';
@@ -58,14 +57,13 @@ interface ClaimDetailPageProps {
   claim: Claim;
   onBack: () => void;
   onUpdate: () => void;
+  walletConnected: boolean;
   walletBalanceHonor: number;
   walletBalanceUSDC?: number;
   initialExpand?: boolean;
 }
 
-export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, walletBalanceUSDC = 250, initialExpand }: ClaimDetailPageProps) {
-  const wallet = DropimusProtocolAPI.getWallet();
-  const walletConnected = wallet && wallet.connected;
+export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletBalanceHonor, walletBalanceUSDC = 250, initialExpand }: ClaimDetailPageProps) {
   const [makeCallExpanded, setMakeCallExpanded] = useState(initialExpand || false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
 
@@ -176,14 +174,19 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
     if (result.success) {
       setTxHash(result.txHash || '');
       // Submit call on protocol APIs
-      DropimusProtocolAPI.submitCallToClaim(claim.id, {
-        side: selectedSide!,
-        honorStaked: honorStake,
-        capitalStaked: capitalStake,
-        proofs: evidenceList,
-        weight: computedWeight,
-      }, result.txHash);
-      
+        const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
+      if (!accessToken) {
+        throw new Error('Authentication session token missing. Please sign in again.');
+      }
+      const vote = selectedSide === 'proven' ? 1 : 0;
+      await DropimusAPI.submitCall(claim.id, {
+        vote,
+        honor_stake: honorStake,
+        capital_stake: capitalStake.toString(),
+        onchain_tx_hash: result.txHash || '',
+        proof_type: evidenceList.length > 0 ? 'soft' : 'none',
+      }, accessToken);
+
       setTimeout(() => {
         setSigningStage('idle');
         setSigningMessage('');
@@ -235,23 +238,30 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
     setAddingProof(false);
   };
 
-  const handleCreateCall = () => {
+  const handleCreateCall = async () => {
     if (!canSubmit) return;
-    
-    // Call the state core
-    DropimusProtocolAPI.submitCallToClaim(claim.id, {
-      side: selectedSide!,
-      honorStaked: honorStake,
-      capitalStaked: capitalStake,
-      proofs: evidenceList,
-      weight: computedWeight,
-    });
+    const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
+    if (!accessToken) {
+      console.warn('Authentication session token missing for call submission.');
+      return;
+    }
+    const vote = selectedSide === 'proven' ? 1 : 0;
+    try {
+      await DropimusAPI.submitCall(claim.id, {
+        vote,
+        honor_stake: honorStake,
+        capital_stake: capitalStake.toString(),
+        onchain_tx_hash: '',
+        proof_type: evidenceList.length > 0 ? 'soft' : 'none',
+      }, accessToken);
+    } catch (err) {
+      console.error('ClaimDetailPage: submit call failed', err);
+    }
 
-    // Reset local state
     setMakeCallExpanded(false);
     setSelectedSide(null);
     setEvidenceList([]);
-    onUpdate(); // Re-fetch parent claim balances
+    onUpdate();
   };
 
   const toggleCallAccordion = (idx: number) => {
@@ -935,8 +945,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                       console.warn("AppKit.open failed: ", e);
                     }
                   } else {
-                    DropimusProtocolAPI.connectWallet();
-                    onUpdate();
+                    console.warn("Wallet connection unavailable.");
                   }
                 }}
                 className="px-6 py-2 rounded-xl text-xs font-bold text-black"

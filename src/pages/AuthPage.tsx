@@ -25,11 +25,10 @@ import {
   X
 } from 'lucide-react';
 import { C, FONTS } from '../tokens';
-import DropimusProtocolAPI, { Wallet, GoogleUser, getAppKit } from '../lib/walletAndGoogle';
+import { getAppKit, GoogleUser } from '../lib/walletAndGoogle';
 import { DropimusAPI } from '../lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { TermsPage } from './TermsPage';
-import { prefetchActiveClaims } from '../lib/claimsCache';
 import { API_BASE } from '../lib/apiBase';
 import dlogo from '../assets/images/dlogo.png';
 
@@ -100,23 +99,10 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
   };
 
   useEffect(() => {
-    DropimusProtocolAPI.initialize();
-    const cachedWallet = DropimusProtocolAPI.getWallet();
-    const cachedGoogle = DropimusProtocolAPI.getGoogleUser();
-
-    setGoogleConnected(cachedGoogle.loggedIn);
-    if (cachedGoogle.loggedIn) {
-      setGoogleUser(cachedGoogle);
-    }
-    setWalletConnected(cachedWallet.connected);
-    if (cachedWallet.address) {
-      setCustomAddress(cachedWallet.address);
-    }
-
-    // Background prefetching of active claims
-    prefetchActiveClaims().catch((err) => {
-      console.warn("AuthPage: background prefetch failed", err);
-    });
+    setGoogleConnected(false);
+    setGoogleUser(null);
+    setWalletConnected(false);
+    setCustomAddress('');
 
     // Subscribe to AppKit state for instant triggers
     let unsubscribe: (() => void) | null = null;
@@ -135,17 +121,11 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
             }
             siweTriggeredAddrRef.current = state.address;
 
-            const currWallet = DropimusProtocolAPI.getWallet();
             const hasToken = !!localStorage.getItem('dropimus_jwt_access_token');
-            const forceShowSIWE = !currWallet.connected || !hasToken || currWallet.address !== state.address;
-
-            triggerSIWEWithAddress(state.address, isManualConnectingRef.current || forceShowSIWE);
+            triggerSIWEWithAddress(state.address, isManualConnectingRef.current || !hasToken);
           } else {
             siweTriggeredAddrRef.current = '';
-            const currWallet = DropimusProtocolAPI.getWallet();
-            if (!currWallet.connected) {
-              setWalletConnected(false);
-            }
+            setWalletConnected(false);
           }
         });
       }
@@ -258,12 +238,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
           localStorage.setItem('dropimus_jwt_refresh_token', authRes.data.refresh_token);
         }
 
-        const wallet = DropimusProtocolAPI.getWallet();
-        wallet.address = addr;
-        wallet.connected = true;
-        DropimusProtocolAPI.saveWallet(wallet);
-
-        showToast("Wallet verified — welcome to Dropimus!", "success");
+showToast("Wallet verified — welcome to Dropimus!", "success");
         setSignatureProgress('success');
         setWalletConnected(true);
 
@@ -598,11 +573,9 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
                             } catch (e) {
                               console.warn("AppKit disconnect failed:", e);
                             }
-                            // Reset local states
                             setShowSIWELayout(false);
                             setWalletConnected(false);
                             setCustomAddress('');
-                            DropimusProtocolAPI.disconnectWallet();
                             showToast("Wallet disconnected.", "info");
                           }}
                           className="px-3 h-10 rounded-lg bg-red-950/20 hover:bg-red-900/30 border border-red-500/20 text-red-400 font-bold text-xs hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"

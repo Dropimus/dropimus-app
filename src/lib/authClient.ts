@@ -49,8 +49,7 @@ export function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
 
   const refresh = getRefreshToken();
-  // Nothing to refresh with, or a simulated/offline session — don't try.
-  if (!refresh || refresh.startsWith('simulated')) return Promise.resolve(null);
+  if (!refresh) return Promise.resolve(null);
 
   refreshInFlight = (async () => {
     try {

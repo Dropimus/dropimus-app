@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Claim, DropimusProtocolAPI } from './walletAndGoogle';
+import { Claim } from './walletAndGoogle';
 import { DropimusAPI } from './dropimusAPI';
 
 const DB_NAME = 'dropimus_claims_db';
@@ -132,7 +132,7 @@ export async function prefetchActiveClaims(): Promise<Claim[]> {
   // Try fetching from the real backend first
   try {
     const response = await DropimusAPI.getPublicClaims(50); // Fetch up to 50 public claims
-    if (response && response.success && response.data && response.data.claims) {
+    if (response && response.data && Array.isArray(response.data.claims)) {
       sourceClaims = response.data.claims.map((c: any) => {
         const daysLeft = c.resolution_date 
           ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000)) 

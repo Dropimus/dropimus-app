@@ -60,7 +60,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
     { date: '06-10', cumulativeYield: 385, label: 'Stake' },
   ];
 
-  // Simulated history items
+  // Archetypal honor event examples
   const honorHistory = [
     { label: "Evaluation Reward (Base Token)", date: "2026-06-10", delta: "+10", isGain: true },
     { label: "Claim Anchored (Polymarket Airdrop)", date: "2026-06-08", delta: "-100", isGain: false },
