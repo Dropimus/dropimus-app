@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkeleton } from './components/shared/SkeletonLoader';
 import { getCachedClaims, saveClaimsToCache } from './lib/claimsCache';
 import { API_BASE } from './lib/apiBase';
+import { authFetch, onSessionExpired } from './lib/authClient';
 
 // Memoized Liquid-morphism ambient background blobs with organic breathing animations
 const AmbientBackground = React.memo(({ activePage }: { activePage: string }) => {
@@ -220,11 +221,7 @@ export default function App() {
       try {
         const [meRes, usageRes] = await Promise.all([
           DropimusAPI.getCurrentUser(token),
-          fetch(`${API_BASE}/api/me/usage`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }).then(res => res.ok ? res.json() : null)
+          authFetch('/api/me/usage').then(res => res.ok ? res.json() : null)
         ]).catch(() => [null, null]);
 
         if (meRes && meRes.success && meRes.data) {
@@ -439,7 +436,9 @@ export default function App() {
         // Check backend session validity in backchannel
         if (cachedWallet.connected || cachedGoogleUser.loggedIn) {
           try {
-            const statusRes = await fetch(`${API_BASE}/api/auth/status`);
+            // signOutOnFailure:false — on first load, a failed refresh shouldn't
+            // immediately bounce the user; the periodic check resolves it.
+            const statusRes = await authFetch('/api/auth/status', {}, { signOutOnFailure: false });
             if (statusRes.ok) {
               const sData = await statusRes.json();
               if (sData.authenticated && sData.user) {
@@ -474,12 +473,9 @@ export default function App() {
               } else {
                 handleForceCleanSession();
               }
-            } else {
-              // Status non-ok - if we get unauthorized code from server, clear outdated cache
-              if (statusRes.status === 401 || statusRes.status === 403) {
-                handleForceCleanSession();
-              }
             }
+            // A non-ok response (incl. a 401 that couldn't be refreshed) is left
+            // as-is on first load; the periodic check resolves a dead session.
           } catch (statusErr) {
             console.warn("App: Background session verification silent ignore", statusErr);
           }
@@ -494,27 +490,28 @@ export default function App() {
   useEffect(() => {
     if (!wallet.connected && !googleUser.loggedIn) return;
 
+    // Sign out only when a refresh genuinely fails (authClient calls this).
+    onSessionExpired(handleSignOut);
+
     const pingInterval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/status`);
+        // authFetch refreshes the access token on a 401 and retries; it only
+        // triggers sign-out (via onSessionExpired) if the refresh itself fails.
+        const res = await authFetch('/api/auth/status');
         if (res.ok) {
           const sData = await res.json();
           if (!sData.authenticated) {
-            console.warn("Session expired on backend. Directing to sign-out...");
+            console.warn("Session reported unauthenticated by backend. Signing out...");
             handleSignOut();
           }
-        } else if (res.status === 401 || res.status === 403) {
-          // If explicit auth rejection (401/403) comes back, session is dead
-          console.warn("Session check returned authorization rejection. Directing to sign-out...");
-          handleSignOut();
         } else {
-          // Keep local session active during general backend glitches (502, 503, 504 etc.)
-          console.warn(`Session check received transient HTTP status (${res.status}). Ignoring error to preserve connection...`);
+          // Non-ok that isn't a recoverable 401 (e.g. 5xx): keep local session.
+          console.warn(`Session check received HTTP ${res.status}. Preserving session.`);
         }
       } catch (err) {
-        console.warn("Periodic session checking encountered network communication error:", err);
+        console.warn("Periodic session check network error (ignored):", err);
       }
-    }, 15000); // 15 seconds frequency
+    }, 30000); // 30s frequency
 
     return () => clearInterval(pingInterval);
   }, [wallet.connected, googleUser.loggedIn]);

@@ -9,6 +9,7 @@
  */
 
 import { API_BASE } from './apiBase';
+import { authFetch } from './authClient';
 
 export interface NonceResponse {
   success: boolean;
@@ -451,12 +452,7 @@ export class DropimusAPI {
         };
       }
 
-      const res = await fetch(`${this.getBaseUrl()}/api/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
-        credentials: 'include'
-      }).catch(err => {
+      const res = await authFetch('/api/users/me').catch(err => {
         console.warn("DropimusAPI: getCurrentUser network error. Falling back.", err);
         return null;
       });
