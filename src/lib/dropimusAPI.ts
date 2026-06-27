@@ -114,14 +114,11 @@ export class DropimusAPI {
   /**
    * 3. POST /api/claims/anchor
    */
-  static async anchorClaim(payload: AnchorPayload, accessToken: string): Promise<any> {
+  static async anchorClaim(payload: AnchorPayload, _accessToken?: string): Promise<any> {
     try {
-      const res = await fetch(`${this.getBaseUrl()}/api/claims/anchor`, {
+      const res = await authFetch('/api/claims/anchor', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -141,14 +138,11 @@ export class DropimusAPI {
   static async addClaimEvidence(claimId: string | number, payload: {
     proof_type?: string;
     proofs: AnchorProof[];
-  }, accessToken: string): Promise<any> {
+  }, _accessToken?: string): Promise<any> {
     try {
-      const res = await fetch(`${this.getBaseUrl()}/api/claims/${claimId}/evidence`, {
+      const res = await authFetch(`/api/claims/${claimId}/evidence`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -179,12 +173,8 @@ export class DropimusAPI {
   /**
    * 4. GET /api/claims/my
    */
-  static async getMyClaims(accessToken: string): Promise<any> {
-    const res = await fetch(`${this.getBaseUrl()}/api/claims/my`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
+  static async getMyClaims(_accessToken?: string): Promise<any> {
+    const res = await authFetch('/api/claims/my');
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       return { success: false, detail: `HTTP ${res.status} ${body}` };
@@ -261,14 +251,11 @@ export class DropimusAPI {
     capital_stake: string;
     onchain_tx_hash: string;
     proof_type: string;
-  }, accessToken: string): Promise<any> {
+  }, _accessToken?: string): Promise<any> {
     try {
-      const res = await fetch(`${this.getBaseUrl()}/api/calls/claim/${claimId}/call`, {
+      const res = await authFetch(`/api/calls/claim/${claimId}/call`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -282,13 +269,9 @@ export class DropimusAPI {
   /**
    * 8. GET /api/calls/claim/{claim_id}
    */
-  static async getCallForClaim(claimId: string | number, accessToken: string): Promise<any> {
+  static async getCallForClaim(claimId: string | number, _accessToken?: string): Promise<any> {
     try {
-      const res = await fetch(`${this.getBaseUrl()}/api/calls/claim/${claimId}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      const res = await authFetch(`/api/calls/claim/${claimId}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (err) {
@@ -325,13 +308,9 @@ export class DropimusAPI {
       throw new Error('Missing access token for user update');
     }
 
-    const res = await fetch(`${this.getBaseUrl()}/api/users/me`, {
+    const res = await authFetch('/api/users/me', {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -354,12 +333,7 @@ export class DropimusAPI {
       throw new Error('Authentication token missing for verification status.');
     }
 
-    const res = await fetch(`${this.getBaseUrl()}/api/users/me/verification-status`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      },
-      credentials: 'include'
-    });
+    const res = await authFetch('/api/users/me/verification-status');
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -386,7 +360,6 @@ export async function signUSDCApprovalAndDeposit(
   onProgress: (status: string, stage: 'approve' | 'deposit' | 'sign' | 'complete' | 'error') => void
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
   try {
-    const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
     let treasuryAddr = '0x32353da725814b01a90db31e08e025f4a1b2c3d4';
     let mockUsdcAddr = '0x12353da725814b01a90db31e08e025f4a1b2c3d4';
     // Convert to 6-decimal USDC micro-units safely (BigInt() throws on fractional numbers).
@@ -396,11 +369,7 @@ export async function signUSDCApprovalAndDeposit(
     onProgress('Verifying on-chain preflight requirements...', 'approve');
 
     try {
-      const res = await fetch(`${API_BASE}/api/claims/preflight?amount=${usdcAmount}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      const res = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
       if (!res.ok) {
         throw new Error(`Preflight query failed (HTTP ${res.status})`);
       }

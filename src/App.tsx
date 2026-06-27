@@ -131,15 +131,6 @@ export default function App() {
   const [isAuthVerifying, setIsAuthVerifying] = useState<boolean>(true);
   const [authenticated, setAuthenticated] = useState<boolean>(false);
 
-  const isAuthStatusSuccess = (data: any): boolean => {
-    if (!data) return false;
-    if (data.authenticated === true) return true;
-    if (data.success === true) return true;
-    if (data.ok === true) return true;
-    if (data.user) return true;
-    return false;
-  };
-
   // Clear session forcefully on client-side status failure
   const handleForceCleanSession = () => {
     localStorage.removeItem('dropimus_jwt_access_token');
@@ -298,42 +289,39 @@ export default function App() {
         const token = localStorage.getItem('dropimus_jwt_access_token');
         if (token) {
           try {
-            const statusRes = await authFetch('/api/auth/status', {}, { signOutOnFailure: false });
-            if (statusRes.ok) {
-              const sData = await statusRes.json();
-              if (isAuthStatusSuccess(sData)) {
-                if (sData.access_token) {
-                  localStorage.setItem('dropimus_jwt_access_token', sData.access_token);
-                }
-                if (sData.refresh_token) {
-                  localStorage.setItem('dropimus_jwt_refresh_token', sData.refresh_token);
-                }
+            // Probe a Bearer-aware endpoint. /auth/status is validated against a
+            // cookie session and returns authenticated:false for a valid JWT/
+            // wallet session, so it must NOT gate a token login. /users/me
+            // honors the Bearer token (authFetch refreshes it on a 401).
+            const meRes = await authFetch('/api/users/me', {}, { signOutOnFailure: false });
+            if (meRes.ok) {
+              const meJson = await meRes.json().catch(() => null);
+              const u = meJson?.data;
+              if (u) {
+                authGoogleUser = {
+                  loggedIn: true,
+                  name: u.full_name || u.fullName || u.username || 'Dropimus User',
+                  email: u.email || '',
+                  avatar: u.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
+                };
 
-                if (sData.user) {
-                  authGoogleUser = {
-                    loggedIn: true,
-                    name: sData.user.full_name || sData.user.fullName || sData.user.username || 'Google User',
-                    email: sData.user.email || '',
-                    avatar: sData.user.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
+                if (u.address) {
+                  authWallet = {
+                    connected: true,
+                    address: u.address,
+                    balanceUSDC: 0,
+                    balanceHonor: 0,
+                    tier: 'Novice'
                   };
-
-                  if (sData.user.wallets && sData.user.wallets.length > 0) {
-                    const primaryWallet = sData.user.wallets.find((w: any) => w.isPrimary) || sData.user.wallets[0];
-                    authWallet = {
-                      connected: true,
-                      address: primaryWallet.address,
-                      balanceUSDC: 0,
-                      balanceHonor: 0,
-                      tier: 'Novice'
-                    };
-                  }
                 }
 
                 isAuthenticated = true;
-              } else if (sData.authenticated === false || sData.success === false || sData.ok === false) {
+              } else {
                 handleForceCleanSession();
               }
             } else {
+              // 401 that couldn't be refreshed (signOutOnFailure:false keeps the
+              // UI from flashing) — the stored token is dead, clear it.
               handleForceCleanSession();
             }
           } catch (statusErr) {
@@ -376,23 +364,12 @@ export default function App() {
 
     const pingInterval = setInterval(async () => {
       try {
-        // authFetch refreshes the access token on a 401 and retries; it only
-        // triggers sign-out (via onSessionExpired) if the refresh itself fails.
-        const res = await authFetch('/api/auth/status');
-        if (res.ok) {
-          const sData = await res.json();
-          if (!isAuthStatusSuccess(sData)) {
-            if (sData.authenticated === false || sData.success === false || sData.ok === false) {
-              console.warn("Session reported unauthenticated by backend. Signing out...");
-              handleSignOut();
-            } else {
-              console.warn("Session status returned an unknown success shape; preserving session.", sData);
-            }
-          }
-        } else {
-          // Non-ok that isn't a recoverable 401 (e.g. 5xx): keep local session.
-          console.warn(`Session check received HTTP ${res.status}. Preserving session.`);
-        }
+        // Probe a Bearer-aware endpoint, not /auth/status (cookie-based, which
+        // falsely reports a token session as unauthenticated). authFetch
+        // refreshes the access token on a 401 and retries; it only triggers
+        // sign-out (via onSessionExpired -> handleSignOut) if the refresh itself
+        // genuinely fails. Any non-401 status preserves the local session.
+        await authFetch('/api/users/me');
       } catch (err) {
         console.warn("Periodic session check network error (ignored):", err);
       }
@@ -523,6 +500,7 @@ export default function App() {
             onBack={handleClearSelectedClaim}
             onUpdate={refreshState}
             walletConnected={wallet.connected}
+            walletAddress={wallet.address}
             walletBalanceHonor={wallet.balanceHonor}
             walletBalanceUSDC={wallet.balanceUSDC}
             initialExpand={initialExpandCall}

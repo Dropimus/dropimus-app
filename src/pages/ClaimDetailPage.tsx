@@ -58,12 +58,13 @@ interface ClaimDetailPageProps {
   onBack: () => void;
   onUpdate: () => void;
   walletConnected: boolean;
+  walletAddress?: string;
   walletBalanceHonor: number;
   walletBalanceUSDC?: number;
   initialExpand?: boolean;
 }
 
-export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletBalanceHonor, walletBalanceUSDC = 250, initialExpand }: ClaimDetailPageProps) {
+export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 250, initialExpand }: ClaimDetailPageProps) {
   const [makeCallExpanded, setMakeCallExpanded] = useState(initialExpand || false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
 
@@ -419,9 +420,9 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
               PRIMARY ANCHOR EVIDENCE
             </span>
           </div>
-          {walletConnected && wallet.address && (
-            (wallet.address.toLowerCase() === claim.anchorer?.toLowerCase() ||
-            (claim.anchorer && claim.anchorer.startsWith('0x') && wallet.address.toLowerCase().startsWith(claim.anchorer.slice(0, 6).toLowerCase())))
+          {walletConnected && walletAddress && (
+            (walletAddress.toLowerCase() === claim.anchorer?.toLowerCase() ||
+            (claim.anchorer && claim.anchorer.startsWith('0x') && walletAddress.toLowerCase().startsWith(claim.anchorer.slice(0, 6).toLowerCase())))
           ) && !addingAnchorEvidence && (
             <button
               onClick={() => {
