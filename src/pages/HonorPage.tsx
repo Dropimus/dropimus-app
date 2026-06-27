@@ -542,12 +542,12 @@ export function HonorPage({ wallet }: HonorPageProps) {
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: C.text, letterSpacing: '0.04em' }}>DAILY WALLET CAPACITY USAGE</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {(usageData?.daily_usage?.actions || [
-                    { action: "Calls", used: 0, limit: 3, percent: 0, remaining: 3 },
-                    { action: "Proofs", used: 0, limit: 3, percent: 0, remaining: 3 },
-                    { action: "Labels", used: 0, limit: 15, percent: 0, remaining: 15 },
-                    { action: "Actions", used: 0, limit: 50, percent: 0, remaining: 50 }
-                  ]).map((act: any, idx: number) => (
+                  {(usageData?.daily_usage?.actions || []).length === 0 && (
+                    <span style={{ fontSize: '11px', color: C.sub }}>
+                      {loadingUsage ? 'Loading usage…' : 'Usage limits will appear once your account has activity.'}
+                    </span>
+                  )}
+                  {(usageData?.daily_usage?.actions || []).map((act: any, idx: number) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
                         <span style={{ fontWeight: 600, color: C.text }}>{act.action}</span>
@@ -581,12 +581,12 @@ export function HonorPage({ wallet }: HonorPageProps) {
                 <span style={{ fontSize: '11px', fontWeight: 800, color: C.text, letterSpacing: '0.04em' }}>MONTHLY HONOR REPUTATION MINT LIMITS</span>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {(usageData?.monthly_mint_caps?.categories || [
-                    { category: "Airdrops", minted_this_month: 0, cap: 150.0, percent: 0 },
-                    { category: "Crypto", minted_this_month: 0, cap: 250.0, percent: 0 },
-                    { category: "Politics", minted_this_month: 0, cap: 100.0, percent: 0 },
-                    { category: "Sports", minted_this_month: 0, cap: 50.0, percent: 0 }
-                  ]).map((cap: any, index: number) => {
+                  {(usageData?.monthly_mint_caps?.categories || []).length === 0 && (
+                    <span style={{ fontSize: '11px', color: C.sub }}>
+                      {loadingUsage ? 'Loading limits…' : 'Mint limits will appear once your account has activity.'}
+                    </span>
+                  )}
+                  {(usageData?.monthly_mint_caps?.categories || []).map((cap: any, index: number) => {
                     const CAT_ICONS: Record<string, React.ComponentType<any>> = {
                       Crypto: Coins,
                       Airdrops: IconParachute,
@@ -649,7 +649,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
                     </TermTooltip>
                   </span>
                   <span style={{ fontSize: '14px', fontWeight: 900, color: C.text, fontFamily: FONTS.display }}>
-                    {usageData?.influence_capacity?.max_stake_per_call === "∞" ? "∞ (Unlimited)" : `$${usageData?.influence_capacity?.max_stake_per_call || 100} USDC`}
+                    {usageData?.influence_capacity?.max_stake_per_call === "∞" ? "∞ (Unlimited)" : (usageData?.influence_capacity?.max_stake_per_call != null ? `$${usageData.influence_capacity.max_stake_per_call} USDC` : '—')}
                   </span>
                 </div>
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -661,7 +661,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
                     </TermTooltip>
                   </span>
                   <span style={{ fontSize: '14px', fontWeight: 900, color: C.text, fontFamily: FONTS.display }}>
-                    {usageData?.influence_capacity?.max_total_stake === "∞" ? "∞ (Unlimited)" : `$${usageData?.influence_capacity?.max_total_stake || 500} USDC`}
+                    {usageData?.influence_capacity?.max_total_stake === "∞" ? "∞ (Unlimited)" : (usageData?.influence_capacity?.max_total_stake != null ? `$${usageData.influence_capacity.max_total_stake} USDC` : '—')}
                   </span>
                 </div>
               </div>
