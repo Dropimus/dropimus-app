@@ -7,10 +7,54 @@ import React, { useState, useEffect } from 'react';
 import { Zap, Shield } from 'lucide-react';
 import { C, FONTS } from '../tokens';
 import TierBadge from '../components/shared/TierBadge';
+import { DropimusAPI } from '../lib/dropimusAPI';
+
+interface LeaderEntry {
+  rank: number;
+  wallet: string;
+  tier: string;
+  accuracy: string;
+  activeHonor: string;
+  score: string;
+}
+
+// Map a raw backend entry into the display shape, tolerating field-name variants
+// and omitting anything the backend doesn't provide (never fabricated).
+const shortAddr = (a: string) => (a && a.startsWith('0x') && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
+
+const formatAccuracy = (v: any): string => {
+  if (v === undefined || v === null || v === '') return '';
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  if (Number.isNaN(n)) return String(v);
+  const pct = n <= 1 ? n * 100 : n;
+  return `${Math.round(pct * 10) / 10}%`;
+};
+
+const formatHonor = (v: any): string => {
+  if (v === undefined || v === null || v === '') return '';
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  if (Number.isNaN(n)) return String(v);
+  return `${n.toLocaleString()} HP`;
+};
+
+const mapEntry = (e: any, i: number): LeaderEntry => {
+  const score = e.score ?? e.credibility_score ?? e.coefficient ?? e.points;
+  return {
+    rank: e.rank ?? i + 1,
+    wallet: e.username || e.display_name || shortAddr(e.address || e.wallet || e.wallet_address || ''),
+    tier: e.tier || e.title || e.honor_status?.title || '',
+    accuracy: formatAccuracy(e.accuracy ?? e.accuracy_pct ?? e.win_rate),
+    activeHonor: formatHonor(e.active_honor ?? e.honor_balance ?? e.honor ?? e.honor_status?.balance),
+    score: score !== undefined && score !== null ? String(Math.round(Number(score) * 10) / 10) : '',
+  };
+};
 
 export function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<'foresight' | 'evaluation'>('foresight');
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
+  const [foresightLeaders, setForesightLeaders] = useState<LeaderEntry[]>([]);
+  const [evaluationLeaders, setEvaluationLeaders] = useState<LeaderEntry[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -19,26 +63,34 @@ export function LeaderboardPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Top experts mock indices
-  const foresightLeaders = [
-    { rank: 1, wallet: "0x9f3b...a2c1", tier: "Steward", accuracy: "94%", activeHonor: "12,420 HP", score: "98.4" },
-    { rank: 2, wallet: "0x2a1c...f9e3", tier: "Arbiter", accuracy: "89%", activeHonor: "4,103 HP", score: "89.2" },
-    { rank: 3, wallet: "0x7f4a...b3d1", tier: "Analyst", accuracy: "81%", activeHonor: "1,240 HP", score: "81.6" },
-    { rank: 4, wallet: "0xe21c...6b8f", tier: "Analyst", accuracy: "79%", activeHonor: "980 HP", score: "78.3" },
-    { rank: 5, wallet: "0x4f1a...c5e2", tier: "Contributor", accuracy: "75%", activeHonor: "320 HP", score: "72.4" },
-  ];
-
-  const evaluationLeaders = [
-    { rank: 1, wallet: "0xe21c...6b8f", tier: "Analyst", accuracy: "96%", activeHonor: "980 HP", score: "93.3" },
-    { rank: 2, wallet: "0x9f3b...a2c1", tier: "Steward", accuracy: "93%", activeHonor: "12,420 HP", score: "91.8" },
-    { rank: 3, wallet: "0x2a1c...f9e3", tier: "Arbiter", accuracy: "90%", activeHonor: "4,103 HP", score: "88.6" },
-    { rank: 4, wallet: "0x7f4a...b3d1", tier: "Analyst", accuracy: "83%", activeHonor: "1,240 HP", score: "82.4" },
-    { rank: 5, wallet: "0x8d4b...c1d2", tier: "Novice", accuracy: "78%", activeHonor: "95 HP", score: "69.1" },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      const [forecasters, anchors] = await Promise.all([
+        DropimusAPI.getLeaderboard('top-forecasters'),
+        DropimusAPI.getLeaderboard('top-anchors'),
+      ]);
+      if (cancelled) return;
+      setForesightLeaders(forecasters.map(mapEntry));
+      setEvaluationLeaders(anchors.map(mapEntry));
+      setIsLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const currentLeaders = activeTab === 'foresight' ? foresightLeaders : evaluationLeaders;
 
-  const renderRankingList = (leaders: typeof foresightLeaders) => {
+  const renderEmpty = (label: string) => (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '28px 16px', textAlign: 'center' }}>
+      <span style={{ fontSize: '12px', color: C.sub, fontWeight: 600 }}>
+        {isLoading ? 'Loading rankings…' : `No ${label} yet. Rankings appear once the protocol has activity.`}
+      </span>
+    </div>
+  );
+
+  const renderRankingList = (leaders: LeaderEntry[]) => {
+    if (leaders.length === 0) return renderEmpty('rankings');
     const getRankStyle = (rank: number) => {
       if (rank === 1) return { color: C.goldBright, border: `1.5px solid ${C.gold}`, background: 'rgba(245, 158, 11, 0.15)' };
       if (rank === 2) return { color: '#E2E8F0', border: '1.5px solid #94A3B8', background: 'rgba(148, 163, 184, 0.15)' };
@@ -86,26 +138,32 @@ export function LeaderboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 600, color: C.text }}>
-                      {lead.wallet}
+                      {lead.wallet || '—'}
                     </span>
-                    <TierBadge tier={lead.tier} />
+                    {lead.tier && <TierBadge tier={lead.tier} />}
                   </div>
-                  
-                  <span style={{ fontSize: '11px', color: C.sub }}>
-                    Accuracy: <span style={{ color: C.goldBright, fontWeight: 600 }}>{lead.accuracy}</span> · Total: <span style={{ color: C.blueLight }}>{lead.activeHonor}</span>
-                  </span>
+
+                  {(lead.accuracy || lead.activeHonor) && (
+                    <span style={{ fontSize: '11px', color: C.sub }}>
+                      {lead.accuracy && <>Accuracy: <span style={{ color: C.goldBright, fontWeight: 600 }}>{lead.accuracy}</span></>}
+                      {lead.accuracy && lead.activeHonor && ' · '}
+                      {lead.activeHonor && <>Total: <span style={{ color: C.blueLight }}>{lead.activeHonor}</span></>}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Right Score display */}
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ color: C.sub, fontSize: '8px', display: 'block', fontWeight: 700, letterSpacing: '0.04em' }}>
-                  SCORE COEFF
-                </span>
-                <span style={{ fontFamily: FONTS.display, fontSize: `${isRank1 ? '24px' : '20px'}`, fontWeight: 800, color: C.text, lineHeight: 1 }}>
-                  {lead.score}
-                </span>
-              </div>
+              {lead.score && (
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: C.sub, fontSize: '8px', display: 'block', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    SCORE COEFF
+                  </span>
+                  <span style={{ fontFamily: FONTS.display, fontSize: `${isRank1 ? '24px' : '20px'}`, fontWeight: 800, color: C.text, lineHeight: 1 }}>
+                    {lead.score}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}

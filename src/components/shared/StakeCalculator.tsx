@@ -14,7 +14,7 @@ interface StakeCalculatorProps {
   currentHonorBalance?: number;
 }
 
-export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBalance = 250, currentHonorBalance = 340 }: StakeCalculatorProps) {
+export function StakeCalculator({ claimTitle = "Active Position", currentUSDCBalance = 0, currentHonorBalance = 0 }: StakeCalculatorProps) {
   // Calculation State
   const [simCapital, setSimCapital] = useState<number>(50); // $ USDC
   const [simConsensus, setSimConsensus] = useState<number>(75); // % confidence level

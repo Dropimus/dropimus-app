@@ -35,19 +35,8 @@ interface TrendingTopic {
   topic: string;
   category: string;
   volume: string;
-  change: string;
-  isUp: boolean;
   count: number;
 }
-
-const TRENDING_TOPICS: TrendingTopic[] = [
-  { topic: 'MegaETH Allocation', category: 'Airdrops', volume: '$1.4M', change: '+42%', isUp: true, count: 18 },
-  { topic: 'ZK Airdrop', category: 'Airdrops', volume: '$890k', change: '+128%', isUp: true, count: 32 },
-  { topic: 'Multisig Insiders', category: 'Security', volume: '$2.1M', change: '-5%', isUp: false, count: 14 },
-  { topic: 'LayerZero Season 2', category: 'Projects', volume: '$3.4M', change: '+18%', isUp: true, count: 25 },
-  { topic: 'Team Wallet Disclosure', category: 'Accountability', volume: '$4.2M', change: '+94%', isUp: true, count: 47 },
-  { topic: 'Bridge Solvency', category: 'Trust', volume: '$620k', change: '+15%', isUp: true, count: 9 },
-];
 
 export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps) {
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
@@ -114,9 +103,21 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
     return 0;
   });
 
+  // Trending topics are derived from the real claims (most-evaluated first) —
+  // no fabricated volume/percentages.
+  const trendingTopics: TrendingTopic[] = [...claims]
+    .sort((a, b) => b.callers - a.callers)
+    .slice(0, 8)
+    .map(c => ({
+      topic: c.title,
+      category: c.category,
+      volume: `$${(c.capital || 0).toLocaleString()}`,
+      count: c.callers || 0,
+    }));
+
   // Filter trending topics in real time as the user types
-  const matchingTopics = TRENDING_TOPICS.filter(t => 
-    !searchQuery || 
+  const matchingTopics = trendingTopics.filter(t =>
+    !searchQuery ||
     t.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -476,16 +477,16 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
                           <span style={{ fontSize: '10px', color: C.text, fontFamily: FONTS.mono, fontWeight: 600 }}>
                             {t.volume}
                           </span>
-                          <span style={{ 
-                            fontSize: '8px', 
-                            color: t.isUp ? '#10B981' : '#EF4444', 
-                            fontWeight: 700, 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <span style={{
+                            fontSize: '8px',
+                            color: C.sub,
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
                             gap: '2px',
-                            fontFamily: FONTS.mono 
+                            fontFamily: FONTS.mono
                           }}>
-                            {t.isUp ? '▲' : '▼'} {t.change}
+                            {t.count} {t.count === 1 ? 'position' : 'positions'}
                           </span>
                         </div>
                       </div>

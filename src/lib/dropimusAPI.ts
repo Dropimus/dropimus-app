@@ -347,6 +347,32 @@ export class DropimusAPI {
 
     return data;
   }
+
+  /**
+   * 12. GET /api/leaderboard/{board} — real ranking data.
+   * Returns a normalized array of entries (empty array if unavailable), so the
+   * UI never renders fabricated rankings.
+   */
+  static async getLeaderboard(board: 'top-forecasters' | 'top-anchors' | 'honor' | 'rising'): Promise<any[]> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/leaderboard/${board}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      // Tolerant of the response envelope.
+      const arr =
+        (Array.isArray(data) && data) ||
+        (Array.isArray(data?.data) && data.data) ||
+        (Array.isArray(data?.data?.entries) && data.data.entries) ||
+        (Array.isArray(data?.entries) && data.entries) ||
+        (Array.isArray(data?.results) && data.results) ||
+        (Array.isArray(data?.items) && data.items) ||
+        (Array.isArray(data?.leaders) && data.leaders) ||
+        [];
+      return arr;
+    } catch {
+      return [];
+    }
+  }
 }
 
 /**
@@ -360,8 +386,10 @@ export async function signUSDCApprovalAndDeposit(
   onProgress: (status: string, stage: 'approve' | 'deposit' | 'sign' | 'complete' | 'error') => void
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
   try {
-    let treasuryAddr = '0x32353da725814b01a90db31e08e025f4a1b2c3d4';
-    let mockUsdcAddr = '0x12353da725814b01a90db31e08e025f4a1b2c3d4';
+    // Contract addresses come exclusively from the backend preflight — no
+    // hardcoded fallbacks, so we never sign a transaction against a fake address.
+    let treasuryAddr = '';
+    let mockUsdcAddr = '';
     // Convert to 6-decimal USDC micro-units safely (BigInt() throws on fractional numbers).
     let reqUnits = BigInt(Math.round(usdcAmount * 1_000_000));
     let skipApproval = false;
@@ -377,8 +405,8 @@ export async function signUSDCApprovalAndDeposit(
       if (!json || json.success === false || !json.data) {
         throw new Error(json?.detail || 'Invalid preflight response.');
       }
-      treasuryAddr = json.data.treasury_address || treasuryAddr;
-      mockUsdcAddr = json.data.mock_usdc_address || mockUsdcAddr;
+      treasuryAddr = json.data.treasury_address || '';
+      mockUsdcAddr = json.data.mock_usdc_address || '';
       if (json.data.required_units) {
         reqUnits = BigInt(json.data.required_units);
       }
@@ -387,6 +415,10 @@ export async function signUSDCApprovalAndDeposit(
       }
     } catch (e: any) {
       throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
+    }
+
+    if (!treasuryAddr || !mockUsdcAddr) {
+      throw new Error('Backend did not return on-chain contract addresses. Cannot proceed safely.');
     }
 
     const { getAppKit } = await import('./walletAndGoogle');

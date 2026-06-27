@@ -64,7 +64,7 @@ interface ClaimDetailPageProps {
   initialExpand?: boolean;
 }
 
-export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 250, initialExpand }: ClaimDetailPageProps) {
+export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 0, initialExpand }: ClaimDetailPageProps) {
   const [makeCallExpanded, setMakeCallExpanded] = useState(initialExpand || false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
 
@@ -84,34 +84,6 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
   const totalConfidenceValue = (totalProven + totalFaded) > 0 
     ? Math.round((totalProven / (totalProven + totalFaded)) * 100)
     : 50;
-
-  // Generate seed-based stable epochs per claim ID to keep historical movement looking authentic
-  const seed1 = (claim.id * 17) % 15 - 7;
-  const seed2 = (claim.id * 31) % 20 - 10;
-  const seed3 = (claim.id * 7) % 25 - 12;
-  const seed4 = (claim.id * 43) % 18 - 9;
-
-  const ep1 = 50;
-  const ep2 = Math.min(95, Math.max(5, Math.round(50 + seed1)));
-  const ep3 = Math.min(95, Math.max(5, Math.round(ep2 + seed2)));
-  const ep4 = Math.min(95, Math.max(5, Math.round(ep3 + seed3)));
-  const ep5 = Math.min(95, Math.max(5, Math.round((ep4 + totalConfidenceValue) / 2 + seed4)));
-  const ep6 = totalConfidenceValue;
-
-  const chartData = [
-    { epoch: 'E01-Genesis', confidence: ep1, color: ep1 > 55 ? '#10B981' : ep1 < 45 ? C.fadedBright : C.blueLight },
-    { epoch: 'E02-Phase I', confidence: ep2, color: ep2 > 55 ? '#10B981' : ep2 < 45 ? C.fadedBright : C.blueLight },
-    { epoch: 'E03-Phase II', confidence: ep3, color: ep3 > 55 ? '#10B981' : ep3 < 45 ? C.fadedBright : C.blueLight },
-    { epoch: 'E04-Phase III', confidence: ep4, color: ep4 > 55 ? '#10B981' : ep4 < 45 ? C.fadedBright : C.blueLight },
-    { epoch: 'E05-Consensus', confidence: ep5, color: ep5 > 55 ? '#10B981' : ep5 < 45 ? C.fadedBright : C.blueLight },
-    { epoch: 'E06-Current', confidence: ep6, color: ep6 > 55 ? '#10B981' : ep6 < 45 ? C.fadedBright : C.blueLight },
-  ];
-
-  const chartColor = totalConfidenceValue > 55 
-    ? '#10B981' 
-    : totalConfidenceValue < 45 
-      ? C.fadedBright 
-      : C.blueLight;
 
   // MakeCall State
   const honorStake = 0;
@@ -161,9 +133,14 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
   const [txHash, setTxHash] = useState<string>('');
  
   const handleTriggerTransactionSigning = async () => {
+    if (!walletAddress) {
+      setSigningStage('error');
+      setSigningMessage('Connect your wallet to sign this transaction.');
+      return;
+    }
     setSigningStage('approve');
     const result = await signUSDCApprovalAndDeposit(
-      '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4',
+      walletAddress,
       capitalStake,
       claim.id,
       (msg, stage) => {
@@ -397,7 +374,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
               CONTENT HASH · BASE CHAIN (VERIFIED)
             </span>
             <span style={{ fontFamily: FONTS.mono, color: C.blueLight, fontSize: '11px', wordBreak: 'break-all' }}>
-              {claim.txHash || "0x9f3b5da7258a101b08efbc46d0a7a"}
+              {claim.txHash || "Pending on-chain confirmation"}
             </span>
           </div>
         </div>
@@ -804,7 +781,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
         </div>
       </div>
 
-      {/* Historical Confidence Trend Line Card */}
+      {/* Current Believe vs Doubt consensus — real stake-weighted split only */}
       <div
         style={{
           background: C.card,
@@ -822,76 +799,38 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              BELIEVE CONVICTION TREND
+              CURRENT CONVICTION
             </span>
             <span style={{ fontSize: '11px', color: C.sub }}>
-              Historical reputation stake weight shifts over epoch blocks
+              Stake-weighted Believe vs Doubt split
             </span>
           </div>
-          <span style={{ 
-            fontFamily: FONTS.mono, 
-            fontSize: '14px', 
-            fontWeight: 800, 
+          <span style={{
+            fontFamily: FONTS.mono,
+            fontSize: '14px',
+            fontWeight: 800,
             color: totalConfidenceValue > 55 ? '#10B981' : totalConfidenceValue < 45 ? C.fadedBright : C.blueLight
           }}>
             {totalConfidenceValue}%
           </span>
          </div>
 
-         {/* Chart Container */}
-         <div style={{ width: '100%', height: '180px', marginTop: '4px' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`confidenceColor-${claim.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chartColor} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={chartColor} stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <XAxis 
-                dataKey="epoch" 
-                stroke="var(--color-border)" 
-                fontSize={9} 
-                tickLine={false}
-                axisLine={false}
-                dy={8}
-                style={{ fontFamily: FONTS.mono, fill: C.sub }}
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                stroke="var(--color-border)" 
-                fontSize={9} 
-                tickLine={false}
-                axisLine={false}
-                dx={-4}
-                style={{ fontFamily: FONTS.mono, fill: C.sub }}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--color-border)', strokeWidth: 1 }} />
-              <Area 
-                type="monotone" 
-                dataKey="confidence" 
-                stroke={chartColor} 
-                strokeWidth={2} 
-                fillOpacity={1} 
-                fill={`url(#confidenceColor-${claim.id})`}
-                activeDot={{ r: 6, stroke: 'var(--color-canvas)', strokeWidth: 2, fill: chartColor }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+         {/* Believe / Doubt split bar (derived from real proven/faded weights) */}
+         <div style={{ width: '100%', height: '12px', borderRadius: '99px', overflow: 'hidden', display: 'flex', background: C.deep }}>
+           <div style={{ width: `${totalConfidenceValue}%`, background: '#10B981' }} />
+           <div style={{ width: `${100 - totalConfidenceValue}%`, background: C.faded }} />
          </div>
 
-         {/* Legend / Info footer for chart */}
+         {/* Legend footer */}
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${C.border}`, fontSize: '10px', fontFamily: FONTS.mono, color: C.sub }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} /> 
-            Believe: Consensus High
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+            Believe {totalConfidenceValue}%
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.faded, display: 'inline-block' }} /> 
-            Doubt: Opinion Dropping
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: C.faded, display: 'inline-block' }} />
+            Doubt {100 - totalConfidenceValue}%
           </span>
-          <span>ORACLE FREQUENCY: EPOCH</span>
          </div>
       </div>
 

@@ -51,29 +51,11 @@ export function HonorPage({ wallet }: HonorPageProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Cumulative USDC yield balance over time for chart representation
-  const yieldChartData = [
-    { date: '05-24', cumulativeYield: 0, label: 'Genesis' },
-    { date: '05-28', cumulativeYield: 85, label: 'Release' },
-    { date: '06-04', cumulativeYield: 455, label: 'Verdict Payout' },
-    { date: '06-08', cumulativeYield: 405, label: 'Anchoring' },
-    { date: '06-10', cumulativeYield: 385, label: 'Stake' },
-  ];
-
-  // Archetypal honor event examples
-  const honorHistory = [
-    { label: "Evaluation Reward (Base Token)", date: "2026-06-10", delta: "+10", isGain: true },
-    { label: "Claim Anchored (Polymarket Airdrop)", date: "2026-06-08", delta: "-100", isGain: false },
-    { label: "Outcome Verified Payout (Hyperliquid S1)", date: "2026-06-04", delta: "+450", isGain: true },
-    { label: "Active Reputation Decay (-1%)", date: "2026-06-01", delta: "-3", isGain: false, isDecay: true },
-  ];
-
-  const usdcHistory = [
-    { label: "Evaluation Stake (Base Token)", date: "2026-06-10", delta: "-20", isGain: false },
-    { label: "Claim Anchoring deposit", date: "2026-06-08", delta: "-50", isGain: false },
-    { label: "Outcome Verdict Payout (Hyperliquid S1)", date: "2026-06-04", delta: "+370", isGain: true },
-    { label: "Evaluation stake release", date: "2026-05-28", delta: "+85", isGain: true },
-  ];
+  // All history/chart data comes from the backend usage payload — never fabricated.
+  // An empty array renders an honest "no activity yet" state.
+  const yieldChartData: any[] = usageData?.yield_series || usageData?.yield_chart || [];
+  const honorHistory: any[] = usageData?.honor_history || usageData?.honor_events || [];
+  const usdcHistory: any[] = usageData?.usdc_history || usageData?.usdc_events || [];
 
   return (
     <div
@@ -482,6 +464,13 @@ export function HonorPage({ wallet }: HonorPageProps) {
       {/* 4. Tab list results rendering */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {activeTab === 'honor' ? (
+          honorHistory.length === 0 ? (
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '10px', padding: '28px 16px', textAlign: 'center' }}>
+              <span style={{ fontSize: '12px', color: C.sub, fontWeight: 600 }}>
+                {loadingUsage ? 'Loading activity…' : 'No honor activity yet.'}
+              </span>
+            </div>
+          ) :
           honorHistory.map((item, idx) => (
             <div
               key={idx}
@@ -793,6 +782,13 @@ export function HonorPage({ wallet }: HonorPageProps) {
                 </span>
               </div>
               <div style={{ width: '100%', height: '170px' }}>
+                {yieldChartData.length === 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <span style={{ fontSize: '12px', color: C.sub, fontWeight: 600 }}>
+                      {loadingUsage ? 'Loading yield data…' : 'No yield data yet.'}
+                    </span>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={yieldChartData}
@@ -834,12 +830,20 @@ export function HonorPage({ wallet }: HonorPageProps) {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
 
             {/* List entries for context list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {usdcHistory.map((item, idx) => (
+              {usdcHistory.length === 0 ? (
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '10px', padding: '28px 16px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '12px', color: C.sub, fontWeight: 600 }}>
+                    {loadingUsage ? 'Loading activity…' : 'No yield activity yet.'}
+                  </span>
+                </div>
+              ) :
+              usdcHistory.map((item, idx) => (
                 <div
                   key={idx}
                   style={{

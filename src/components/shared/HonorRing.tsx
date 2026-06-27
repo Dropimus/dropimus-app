@@ -14,7 +14,7 @@ interface HonorRingProps {
   size?: number;
 }
 
-export function HonorRing({ honor = 340, tier = 'Contributor', size = 120 }: HonorRingProps) {
+export function HonorRing({ honor = 0, tier = 'Novice', size = 120 }: HonorRingProps) {
   const tiers = ['Novice', 'Contributor', 'Analyst', 'Arbiter', 'Steward'];
   const idx = tiers.indexOf(tier);
   

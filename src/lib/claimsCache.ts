@@ -134,33 +134,33 @@ export async function prefetchActiveClaims(): Promise<Claim[]> {
     const response = await DropimusAPI.getPublicClaims(50); // Fetch up to 50 public claims
     if (response && response.data && Array.isArray(response.data.claims)) {
       sourceClaims = response.data.claims.map((c: any) => {
-        const daysLeft = c.resolution_date 
-          ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000)) 
-          : 14;
+        const daysLeft = c.resolution_date
+          ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000))
+          : 0;
 
-        const rawCat = c.category || 'Crypto';
-        const formattedCat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase();
+        const rawCat = c.category || '';
+        const formattedCat = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase() : '';
 
         return {
           id: Number(c.id),
           title: c.title || 'Untitled Claim',
           category: formattedCat,
-          chain: 'Base',
-          anchorer: c.anchorer || '0x9f3b...a2c1',
-          tier: 'Contributor',
-          capital: Math.round(parseFloat(c.capital_stake || c.capital || '5')),
-          honorStaked: Number(c.honor_stake || c.honorStaked || 100),
-          callers: Number(c.callers || 1),
-          proven: c.proven !== undefined ? Number(c.proven) : 100,
+          chain: c.chain || 'Base',
+          anchorer: c.anchorer || '',
+          tier: c.tier || '',
+          capital: Math.round(parseFloat(c.capital_stake ?? c.capital ?? '0')) || 0,
+          honorStaked: Number(c.honor_stake ?? c.honorStaked ?? 0) || 0,
+          callers: Number(c.callers ?? 0) || 0,
+          proven: c.proven !== undefined ? Number(c.proven) : 0,
           faded: c.faded !== undefined ? Number(c.faded) : 0,
           status: c.status || 'open',
           daysLeft: daysLeft,
           description: c.description || '',
           calls: c.calls || [],
           resolutionDate: c.resolution_date || c.resolutionDate,
-          metric: c.metric || 'Price',
-          source: c.source || 'Oracle Feed',
-          txHash: c.anchor_tx_hash || c.txHash || '0x...'
+          metric: c.metric || '',
+          source: c.source || '',
+          txHash: c.anchor_tx_hash || c.txHash || ''
         };
       });
     }

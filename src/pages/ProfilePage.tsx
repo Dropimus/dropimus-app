@@ -102,6 +102,15 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
   // Sort interactions by newest first for timeline realism
   interactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+  // Accuracy derived only from the user's own resolved calls (no fabricated value)
+  const resolvedCalls = interactions.filter(
+    (i) => (i.type === 'stake_proven' || i.type === 'stake_faded') && i.isWinner !== undefined
+  );
+  const winningCalls = resolvedCalls.filter((i) => i.isWinner).length;
+  const accuracyLabel = resolvedCalls.length > 0
+    ? `${Math.round((winningCalls / resolvedCalls.length) * 1000) / 10}%`
+    : '—';
+
   const [recentAnchors, setRecentAnchors] = useState<any[]>([]);
   const [isLoadingRecent, setIsLoadingRecent] = useState<boolean>(false);
 
@@ -211,7 +220,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                 width: '76px',
                 height: '76px',
                 borderRadius: '50%',
-                background: googleUser.loggedIn
+                background: (googleUser.loggedIn && googleUser.avatar)
                   ? `url(${googleUser.avatar}) center/cover no-referrer`
                   : `linear-gradient(135deg, ${C.gold}, ${C.blueLight})`,
                 boxShadow: `0 0 28px ${C.blueGlow}`,
@@ -222,11 +231,17 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
             <div>
               <h2 style={{ fontFamily: FONTS.display, fontSize: '22px', fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: '4px' }}>
-                {googleUser.loggedIn ? googleUser.name : "Anonymity Wallet #502"}
+                {googleUser.loggedIn && googleUser.name
+                  ? googleUser.name
+                  : (wallet.address
+                      ? `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`
+                      : 'Your Profile')}
               </h2>
-              <span className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block">
-                {wallet.address}
-              </span>
+              {wallet.address && (
+                <span className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block">
+                  {wallet.address}
+                </span>
+              )}
             </div>
 
             {/* Concordance Honor Ring */}
@@ -259,7 +274,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                   ACCURACY
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.goldBright, fontFamily: FONTS.display }}>
-                  87.5%
+                  {accuracyLabel}
                 </span>
               </div>
             </div>

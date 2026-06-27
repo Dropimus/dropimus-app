@@ -405,11 +405,17 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
 
     setSigningMessage('Initializing AppKit standard USDC approval...');
 
+    if (!wallet?.address) {
+      setSigningStage('error');
+      setSigningMessage('Connect your wallet to anchor a claim.');
+      return;
+    }
+
     try {
       const result = await signUSDCApprovalAndDeposit(
-        wallet?.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4',
+        wallet.address,
         capitalStake,
-        0, // dummy claim ID for initial creation
+        0, // sentinel claim ID for initial creation
         (msg, stage) => {
           setSigningMessage(msg);
           setSigningStage(stage);
@@ -452,8 +458,7 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
       const claimData = backendRes?.data || {};
       const statusRes = backendRes?.success ? (claimData.status || 'pending_onchain') : 'pending_onchain';
 
-      const mockHash = `0x${Array.from({length:32}, () => Math.floor(Math.random()*16).toString(16)).join('')}`;
-      const realTxHash = claimData.content_hash || claimData.anchor_tx_hash || result.txHash || mockHash;
+      const realTxHash = claimData.content_hash || claimData.anchor_tx_hash || result.txHash || '';
 
       setSuccessClaimHash(realTxHash);
 
@@ -462,8 +467,8 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         title: buildClaimStatement(),
         category: selectedCategory,
         chain: 'Base',
-        anchorer: wallet?.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4',
-        tier: wallet?.tier || 'Contributor',
+        anchorer: wallet.address,
+        tier: wallet?.tier || '',
         capital: capitalStake,
         honorStaked: honorStake,
         callers: 1,
@@ -474,8 +479,8 @@ export function AnchorPage({ onAddClaim, walletBalanceUSDC, wallet }: AnchorPage
         description: payload.description,
         calls: [
           {
-            wallet: wallet?.address || "0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4",
-            tier: wallet?.tier || "Contributor",
+            wallet: wallet.address,
+            tier: wallet?.tier || "",
             side: "proven",
             honorStaked: honorStake,
             capitalStaked: capitalStake,

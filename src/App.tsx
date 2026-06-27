@@ -150,33 +150,33 @@ export default function App() {
       const liveRes = await DropimusAPI.getPublicClaims();
       if (liveRes && liveRes.success && liveRes.data && liveRes.data.claims) {
         const liveClaims = liveRes.data.claims.map((c: any) => {
-          const daysLeft = c.resolution_date 
-            ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000)) 
-            : 14;
+          const daysLeft = c.resolution_date
+            ? Math.max(0, Math.ceil((new Date(c.resolution_date).getTime() - Date.now()) / 86400000))
+            : 0;
 
-          const rawCat = c.category || 'Crypto';
-          const formattedCat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase();
+          const rawCat = c.category || '';
+          const formattedCat = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase() : '';
 
           return {
             id: c.id,
             title: c.title || 'Untitled Claim',
             category: formattedCat,
-            chain: 'Base',
-            anchorer: c.anchorer || '0x9f3b...a2c1',
-            tier: 'Contributor',
-            capital: Math.round(parseFloat(c.capital_stake || c.capital || '5')),
-            honorStaked: c.honor_stake || c.honorStaked || 100,
-            callers: c.callers || 1,
-            proven: c.proven !== undefined ? c.proven : 100,
-            faded: c.faded !== undefined ? c.faded : 0,
+            chain: c.chain || 'Base',
+            anchorer: c.anchorer || '',
+            tier: c.tier || '',
+            capital: Math.round(parseFloat(c.capital_stake ?? c.capital ?? '0')) || 0,
+            honorStaked: Number(c.honor_stake ?? c.honorStaked ?? 0) || 0,
+            callers: Number(c.callers ?? 0) || 0,
+            proven: c.proven !== undefined ? Number(c.proven) : 0,
+            faded: c.faded !== undefined ? Number(c.faded) : 0,
             status: c.status || 'open',
             daysLeft: daysLeft,
             description: c.description || '',
             calls: c.calls || [],
             resolutionDate: c.resolution_date || c.resolutionDate,
-            metric: c.metric || 'Price',
-            source: c.source || 'Oracle Feed',
-            txHash: c.anchor_tx_hash || c.txHash || '0x...'
+            metric: c.metric || '',
+            source: c.source || '',
+            txHash: c.anchor_tx_hash || c.txHash || ''
           };
         });
         setClaimsList(liveClaims);
@@ -209,7 +209,7 @@ export default function App() {
             const updated = {
               ...prev,
               connected: true,
-              address: (uData.auth_providers?.includes('wallet') || uData.is_verified) ? (prev.address || '0x9f3b5da725814b01a90db31e08e025f4a1b2c3d4') : prev.address,
+              address: uData.address || prev.address,
             };
             if (usageRes && usageRes.success && usageRes.data) {
               updated.balanceHonor = usageRes.data.honor_status?.balance ?? updated.balanceHonor;
@@ -260,7 +260,7 @@ export default function App() {
                 loggedIn: true,
                 name: exchangeData.user.full_name || exchangeData.user.fullName || exchangeData.user.username || 'Google User',
                 email: exchangeData.user.email || '',
-                avatar: exchangeData.user.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
+                avatar: exchangeData.user.avatar || '',
               };
 
               if (exchangeData.user.wallets && exchangeData.user.wallets.length > 0) {
@@ -302,7 +302,7 @@ export default function App() {
                   loggedIn: true,
                   name: u.full_name || u.fullName || u.username || 'Dropimus User',
                   email: u.email || '',
-                  avatar: u.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80`,
+                  avatar: u.avatar || '',
                 };
 
                 if (u.address) {
