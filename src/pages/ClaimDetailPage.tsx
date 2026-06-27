@@ -294,7 +294,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
           marginBottom: '10px',
         }}
       >
-        ← The Court Lobbies
+        ← Back to Claims
       </div>
 
       {/* 2. Core claim card */}
@@ -439,7 +439,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
 
         {/* Display Evidence Checklist */}
         {loadingEvidence ? (
-          <span style={{ fontSize: '11px', color: C.sub, fontFamily: FONTS.mono }}>Loading court verification files...</span>
+          <span style={{ fontSize: '11px', color: C.sub, fontFamily: FONTS.mono }}>Loading claim evidence...</span>
         ) : anchorEvidence && anchorEvidence.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
             {anchorEvidence.map((proof: any, idx: number) => (
@@ -529,7 +529,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
             )}
             {evidenceSuccess && (
               <div style={{ color: '#10B981', fontSize: '11px', fontFamily: FONTS.mono }}>
-                ✓ Supporting evidence registered in Base court successfully!
+                ✓ Evidence registered on Base successfully!
               </div>
             )}
 
@@ -1625,7 +1625,7 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletBalanceHonor, w
                 }}
               >
                 <div style={{ fontSize: '9px', color: C.sub, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  PROPOSED COURT STANCE
+                  YOUR POSITION
                 </div>
                 <div
                   style={{
