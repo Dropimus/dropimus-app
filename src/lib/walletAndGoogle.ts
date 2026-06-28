@@ -5,6 +5,18 @@
 
 // Lazy state for Web3 AppKit inside iframe sandboxes
 let appKitInstance: any = null;
+// The real reason the last getAppKit() failed, surfaced to the UI instead of a
+// blanket "sandbox frame" message.
+export let appKitInitError: string | null = null;
+
+/** True when the app is running inside an iframe (where wallet popups may fail). */
+export function isInIframe(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.self !== window.top;
+  } catch {
+    return true; // cross-origin access throws ⇒ we are framed
+  }
+}
 
 export async function getAppKit() {
   if (appKitInstance) return appKitInstance;
@@ -14,7 +26,11 @@ export async function getAppKit() {
     const { WagmiAdapter } = await import('@reown/appkit-adapter-wagmi');
     const { baseSepolia } = await import('@reown/appkit/networks');
 
-    const projectId = (import.meta as any).env?.VITE_REOWN_PROJECT_ID || 'a0249da7-2581-4b01-a90d-b31e08e025f4';
+    // Reown/WalletConnect project IDs are bare 32-hex-char strings. Strip any
+    // dashes/whitespace (e.g. a UUID-formatted id) so a mis-formatted value
+    // doesn't make createAppKit throw and disable the wallet entirely.
+    const rawProjectId = (import.meta as any).env?.VITE_REOWN_PROJECT_ID || 'a0249da7-2581-4b01-a90d-b31e08e025f4';
+    const projectId = String(rawProjectId).replace(/[^a-fA-F0-9]/g, '');
     const rpcUrl = (import.meta as any).env?.VITE_BASE_TESTNET_RPC_URL || 'https://sepolia.base.org';
 
     const baseNetwork = baseSepolia as any;
@@ -56,9 +72,11 @@ export async function getAppKit() {
       }
     });
 
+    appKitInitError = null;
     return appKitInstance;
-  } catch (err) {
-    console.warn("Reown AppKit setup bypassed (iframe sandbox or lack of valid projectId):", err);
+  } catch (err: any) {
+    appKitInitError = err?.message || String(err);
+    console.error("Reown AppKit init failed:", err);
     return null;
   }
 }
