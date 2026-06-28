@@ -43,7 +43,8 @@ const mapEntry = (e: any, i: number): LeaderEntry => {
     rank: e.rank ?? i + 1,
     wallet: e.username || e.display_name || shortAddr(e.address || e.wallet || e.wallet_address || ''),
     tier: e.tier || e.title || e.honor_status?.title || '',
-    accuracy: formatAccuracy(e.accuracy ?? e.accuracy_pct ?? e.win_rate),
+    // accuracy_pct (forecasters) / success_rate_pct (anchors) are already %.
+    accuracy: formatAccuracy(e.accuracy ?? e.accuracy_pct ?? e.success_rate_pct ?? e.win_rate),
     activeHonor: formatHonor(e.active_honor ?? e.honor_balance ?? e.honor ?? e.honor_status?.balance),
     score: score !== undefined && score !== null ? String(Math.round(Number(score) * 10) / 10) : '',
   };

@@ -37,6 +37,8 @@ export function HonorPage({ wallet }: HonorPageProps) {
   const liveTier = _hs.title || _hs.tier || usageData?.account_tier?.name || usageData?.tier || wallet.tier || 'Novice';
   // Real escrowed USDC across active claims (0 until the backend reports it — never fake).
   const liveEscrowUsd = _num(usageData?.escrowed_usdc ?? usageData?.capital?.escrowed_usdc ?? usageData?.total_staked_usdc ?? usageData?.active_capital_usdc) ?? 0;
+  // Real call-accuracy / concordance — shown as "—" until the backend reports it.
+  const liveConcordance = _num(usageData?.concordance_score ?? usageData?.accuracy_pct ?? usageData?.accuracy ?? _hs.accuracy ?? _hs.accuracy_pct);
 
   const fetchUsage = useCallback(async () => {
     setLoadingUsage(true);
@@ -331,7 +333,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
             </span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
               <span style={{ fontFamily: FONTS.display, fontSize: '28px', fontWeight: 800, color: C.text }}>
-                85
+                {liveConcordance != null ? Math.round(liveConcordance) : '—'}
               </span>
               <span style={{ fontSize: '11px', color: C.blueLight, fontWeight: 700 }}>SBT SCORE</span>
             </div>

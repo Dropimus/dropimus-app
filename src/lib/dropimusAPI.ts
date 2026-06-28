@@ -401,7 +401,13 @@ export class DropimusAPI {
    */
   static async getLeaderboard(board: 'top-forecasters' | 'top-anchors' | 'honor' | 'rising'): Promise<any[]> {
     try {
-      const res = await fetch(`${this.getBaseUrl()}/api/leaderboard/${board}`);
+      // Lower the participation thresholds so the board populates as soon as
+      // anyone has a single call/anchor (defaults are 5/3, which read as "no
+      // data" on an early deployment).
+      const qs = board === 'top-forecasters' ? '?min_calls=1&limit=50'
+        : board === 'top-anchors' ? '?min_anchors=1&limit=50'
+        : '?limit=50';
+      const res = await fetch(`${this.getBaseUrl()}/api/leaderboard/${board}${qs}`);
       if (!res.ok) return [];
       const data = await res.json();
       // Tolerant of the response envelope.
