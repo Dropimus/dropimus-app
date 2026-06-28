@@ -542,9 +542,17 @@ const ERC20_ABI = [
   { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
 ] as const;
 
-// claimId here is the on-chain callId; direction 0=PROVEN, 1=FADED.
+// DropimusCallRegistry.submitCall(uint256 claimId, VerdictDirection direction,
+//   uint256 capitalAmount, JustificationType justification)
+//   direction: PROVEN=0, FADED=1 ; justification: NONE=0, TYPE1=1, TYPE2=2.
+// claimId is the on-chain anchor callId. justification is NONE for a plain call.
 const REGISTRY_SUBMIT_ABI = [
-  { name: 'submitCall', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'claimId', type: 'uint256' }, { name: 'direction', type: 'uint8' }, { name: 'capitalStaked', type: 'uint256' }], outputs: [] },
+  { name: 'submitCall', type: 'function', stateMutability: 'nonpayable', inputs: [
+    { name: 'claimId', type: 'uint256' },
+    { name: 'direction', type: 'uint8' },
+    { name: 'capitalAmount', type: 'uint256' },
+    { name: 'justification', type: 'uint8' },
+  ], outputs: [] },
 ] as const;
 
 async function _getProvider(): Promise<any> {
@@ -612,7 +620,7 @@ export async function submitCallForClaim(params: {
     const callData = encodeFunctionData({
       abi: REGISTRY_SUBMIT_ABI,
       functionName: 'submitCall',
-      args: [BigInt(onchainCallId), direction, capitalUnits],
+      args: [BigInt(onchainCallId), direction, capitalUnits, 0], // justification = NONE
     });
     const txHash = await provider.request({
       method: 'eth_sendTransaction',

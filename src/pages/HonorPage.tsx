@@ -24,6 +24,17 @@ export function HonorPage({ wallet }: HonorPageProps) {
   const [usageData, setUsageData] = useState<any>(null);
   const [loadingUsage, setLoadingUsage] = useState<boolean>(false);
 
+  // Honor balance/tier come from the live /me/usage payload (tolerant of field
+  // names), falling back to the wallet prop — never a stale hardcoded value.
+  const _num = (v: any): number | null => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : parseFloat(String(v));
+    return Number.isFinite(n) ? n : null;
+  };
+  const _hs = usageData?.honor_status || usageData?.honor || {};
+  const liveHonor = _num(_hs.balance ?? _hs.honor_points ?? _hs.total ?? _hs.current ?? usageData?.honor_balance ?? usageData?.honor_points) ?? (wallet.balanceHonor || 0);
+  const liveTier = _hs.title || _hs.tier || usageData?.account_tier?.name || usageData?.tier || wallet.tier || 'Novice';
+
   useEffect(() => {
     const fetchUsage = async () => {
       setLoadingUsage(true);
@@ -181,7 +192,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           {/* Circular SVG Ring */}
-          <HonorRing honor={wallet.balanceHonor} tier={wallet.tier} size={120} />
+          <HonorRing honor={liveHonor} tier={liveTier} size={120} />
 
           {/* Right tier meta limits descriptions */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -190,18 +201,18 @@ export function HonorPage({ wallet }: HonorPageProps) {
             </span>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: FONTS.display, fontSize: '15px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                {wallet.tier} Rank
+                {liveTier} Rank
                 <TermTooltip term="honor" underline={false}>
                   <HelpCircle size={11} style={{ color: C.blueLight, cursor: 'pointer' }} />
                 </TermTooltip>
               </span>
               <span style={{ fontSize: '11px', fontFamily: FONTS.mono, color: C.blueLight }}>
-                {wallet.balanceHonor} SBT
+                {liveHonor} SBT
               </span>
             </div>
 
             {(() => {
-              const currentHonor = wallet.balanceHonor;
+              const currentHonor = liveHonor;
               let prevFloor = 0;
               let nextTierName = "Contributor";
               let nextTierFloor = 150;
@@ -338,7 +349,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
             </span>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
               <span style={{ fontFamily: FONTS.display, fontSize: '28px', fontWeight: 800, color: C.text }}>
-                {wallet.balanceHonor}
+                {liveHonor}
               </span>
               <span style={{ fontSize: '11px', color: C.goldBright, fontWeight: 700 }}>SBT POWER</span>
             </div>
@@ -674,16 +685,8 @@ export function HonorPage({ wallet }: HonorPageProps) {
                 </span>
               </div>
 
-              {/* operator upgrade card campaign */}
-              {(usageData?.upgrade_nudge || {
-                title: "Accelerate to Operator Tier",
-                message: "You are currently running with basic evaluation capacities. Upgrade to unlock full validator power.",
-                benefits: [
-                  "Uncapped protocol staking — influence scales with your Honor",
-                  "Gain full priority consensus weight on Base Mainnet",
-                  "Unlock completely unlimited daily evaluation actions"
-                ]
-              }) && (
+              {/* operator upgrade card — only when the backend actually sends one */}
+              {usageData?.upgrade_nudge && (
                 <div 
                   style={{ 
                     background: 'linear-gradient(135deg, rgba(230,193,92,0.11) 0%, rgba(16,185,129,0.03) 100%)', 
@@ -703,20 +706,16 @@ export function HonorPage({ wallet }: HonorPageProps) {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <Zap size={14} style={{ color: C.goldBright }} fill={C.goldBright} />
                     <span style={{ fontSize: '13px', fontWeight: 800, color: C.goldBright, letterSpacing: '-0.01em' }}>
-                      {usageData?.upgrade_nudge?.title || "Accelerate to Operator Tier"}
+                      {usageData.upgrade_nudge.title}
                     </span>
                   </div>
 
                   <p style={{ fontSize: '11px', color: C.sub, lineHeight: 1.5, margin: 0 }}>
-                    {usageData?.upgrade_nudge?.message || "You are currently running with basic evaluation capacities. Upgrade to unlock full validator power."}
+                    {usageData.upgrade_nudge.message}
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '4px 0' }}>
-                    {(usageData?.upgrade_nudge?.benefits || [
-                      "Uncapped protocol staking — influence scales with your Honor",
-                      "Gain full priority consensus weight on Base Mainnet",
-                      "Unlock completely unlimited daily evaluation actions"
-                    ]).map((bf: string, i: number) => (
+                    {(usageData.upgrade_nudge.benefits || []).map((bf: string, i: number) => (
                       <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px', color: C.sub }}>
                         <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
                         <span>{bf}</span>
@@ -753,7 +752,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
-                    <span>{usageData?.upgrade_nudge?.cta || "Upgrade Tier Level"}</span>
+                    <span>{usageData.upgrade_nudge.cta || "Upgrade"}</span>
                   </button>
                 </div>
               )}
