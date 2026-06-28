@@ -34,6 +34,8 @@ export function HonorPage({ wallet }: HonorPageProps) {
   const _hs = usageData?.honor_status || usageData?.honor || {};
   const liveHonor = _num(_hs.balance ?? _hs.honor_points ?? _hs.total ?? _hs.current ?? usageData?.honor_balance ?? usageData?.honor_points) ?? (wallet.balanceHonor || 0);
   const liveTier = _hs.title || _hs.tier || usageData?.account_tier?.name || usageData?.tier || wallet.tier || 'Novice';
+  // Real escrowed USDC across active claims (0 until the backend reports it — never fake).
+  const liveEscrowUsd = _num(usageData?.escrowed_usdc ?? usageData?.capital?.escrowed_usdc ?? usageData?.total_staked_usdc ?? usageData?.active_capital_usdc) ?? 0;
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -384,7 +386,7 @@ export function HonorPage({ wallet }: HonorPageProps) {
 
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontFamily: FONTS.display, color: C.goldBright, fontSize: '32px', fontWeight: 800, lineHeight: 1 }}>
-            +$385.00
+            ${liveEscrowUsd.toFixed(2)}
           </span>
         </div>
       </div>

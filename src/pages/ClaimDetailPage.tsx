@@ -15,6 +15,7 @@ import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
 import { PROOF_TYPES } from '../data';
 import { submitCallForClaim, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
+import { authFetch } from '../lib/authClient';
 import CountdownTimer from '../components/shared/CountdownTimer';
 import {
   ResponsiveContainer,
@@ -185,6 +186,27 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
       setSigningMessage('No connected wallet address found. Reconnect your wallet and try again.');
       return;
     }
+
+    // Pre-flight: catch the contract's revert conditions (honor gate, own claim,
+    // already-called, window) BEFORE asking the wallet to sign, so the user gets
+    // a clear reason instead of a wallet "unknown / failing transaction".
+    setSigningMessage('Checking eligibility…');
+    try {
+      const pfRes = await authFetch(`/api/calls/preflight/${claim.id}?capital_stake=${capitalStake}`);
+      if (pfRes.ok) {
+        const pj = (await pfRes.json().catch(() => null))?.data;
+        if (pj) {
+          let reason = '';
+          if (pj.is_own_claim) reason = 'You can’t take a position on your own claim.';
+          else if (pj.already_called) reason = 'You already have a position on this claim.';
+          else if (pj.claim_active === false) reason = 'This claim isn’t open for positions right now.';
+          else if (pj.claim_onchain === false) reason = 'This claim is still confirming on-chain — try again shortly.';
+          else if (pj.honor_gate_pass === false) reason = `You need ${pj.honor_minimum ?? 20}+ Honor to take a position (you currently have ${pj.honor_balance ?? 0}).`;
+          else if (pj.has_balance === false) reason = `Not enough test dUSD — you need ${pj.required_usdc ?? capitalStake} dUSD. Ask the team to top up your wallet.`;
+          if (reason) { setSigningStage('error'); setSigningMessage(reason); return; }
+        }
+      }
+    } catch { /* network issue — let the on-chain tx be the source of truth */ }
 
     // VerdictDirection: PROVEN = 0, FADED = 1 (matches the registry + backend).
     const direction: 0 | 1 = selectedSide === 'proven' ? 0 : 1;
