@@ -56,6 +56,15 @@ const mapBackendClaim = (c: any): Claim => {
   }
 
   const callers = num(m.total_calls ?? m.participant_count ?? m.callers ?? c.callers) ?? 0;
+  // Sampled positions for the sentiment chart: market endpoint nests them under
+  // market.calls as { direction: 'proven'|'faded', stake }.
+  const rawSampled = Array.isArray(m.calls) ? m.calls : (Array.isArray(c.calls) ? c.calls : []);
+  const sampledCalls = rawSampled
+    .map((s: any) => ({
+      side: (s.direction === 'proven' || s.side === 'proven' || s.direction === 0) ? 'proven' as const : 'faded' as const,
+      stake: num(s.stake ?? s.capital_stake ?? s.capitalStaked) ?? 0,
+    }))
+    .filter((s: any) => s.stake > 0);
   const capital = num(
     c.capital_staked ?? c.capital_stake ?? c.capital ?? c.anchor_capital ?? c.capital_amount
     ?? m.total_capital ?? m.capital_staked ?? m.total_staked,
@@ -93,6 +102,7 @@ const mapBackendClaim = (c: any): Claim => {
     daysLeft,
     description: c.description || '',
     calls: c.calls || [],
+    sampledCalls,
     resolutionDate: c.resolution_date || c.resolutionDate,
     metric: c.metric || '',
     source: c.source || '',

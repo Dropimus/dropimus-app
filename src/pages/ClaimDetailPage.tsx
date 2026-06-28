@@ -11,7 +11,7 @@ import { Claim, Call, Proof, isClaimLive, getAppKit } from '../lib/walletAndGoog
 import CatPill from '../components/shared/CatPill';
 import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
-import ConvictionGauge from '../components/shared/ConvictionGauge';
+import MarketLines from '../components/shared/MarketLines';
 import Avatar from '../components/shared/Avatar';
 import Btn from '../components/shared/Btn';
 import { Select } from '../components/shared/Select';
@@ -19,41 +19,6 @@ import { PROOF_TYPES } from '../data';
 import { submitCallForClaim, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
 import CountdownTimer from '../components/shared/CountdownTimer';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from 'recharts';
-
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div style={{
-        background: C.card,
-        border: `1px solid ${C.border}`,
-        borderRadius: '8px',
-        padding: '8px 12px',
-        fontSize: '11px',
-        fontFamily: FONTS.mono,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 9999,
-      }}>
-        <div style={{ color: C.sub, marginBottom: '2px' }}>{data.epoch}</div>
-        <div style={{ fontWeight: 800, color: data.color }}>
-          Believe: {payload[0].value}% Consensus
-        </div>
-        <div style={{ color: C.sub, fontSize: '10px' }}>
-          Conviction Ratio: {payload[0].value}% / {100 - payload[0].value}%
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 
 interface ClaimDetailPageProps {
   claim: Claim;
@@ -830,9 +795,18 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           </span>
         </div>
 
-        {/* Conviction gauge — single source of sentiment, market-grade */}
+        {/* Credibility market — believe vs doubt price lines */}
         <div style={{ width: '100%', padding: '4px 0' }}>
-          <ConvictionGauge proven={claim.proven} faded={claim.faded} large hasPositions={(totalProven + totalFaded) > 0} live={isClaimLive(claim.status)} />
+          <MarketLines
+            proven={claim.proven}
+            faded={claim.faded}
+            sampledCalls={claim.sampledCalls}
+            capital={claim.capital}
+            callers={claim.callers}
+            large
+            hasPositions={(totalProven + totalFaded) > 0}
+            live={isClaimLive(claim.status)}
+          />
         </div>
 
         <div style={{ width: '100%', height: '1px', background: C.hairline }} />
