@@ -485,11 +485,11 @@ export async function signUSDCApprovalAndDeposit(
     const cfg = await DropimusAPI.getContractConfig();
     // The approval spender MUST match what the backend's preflight checks the
     // allowance against, otherwise the post-approval poll never confirms and the
-    // flow hangs. Anchoring now pulls capital via the TREASURY (preflight returns
-    // treasury_address), not the Capital contract as before — prefer the
-    // preflight's own address, falling back to config, then legacy capital.
+    // flow hangs. Anchoring approves the DropimusCapital contract (the preflight
+    // returns its address as capital_address) — use that authoritative value,
+    // falling back to config; treasury is only a defensive last resort.
     const spenderAddr = isAnchor
-      ? (pf.treasury_address || pf.capital_address || cfg?.addresses?.treasury || cfg?.addresses?.capital || '')
+      ? (pf.capital_address || cfg?.addresses?.capital || pf.treasury_address || cfg?.addresses?.treasury || '')
       : (pf.registry_address || cfg?.addresses?.registry || '');
     const tokenAddr = cfg?.addresses?.dUSD || pf.mock_usdc_address || '';
 
