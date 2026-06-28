@@ -9,11 +9,14 @@ import { C, FONTS } from '../../tokens';
 import { authFetch } from '../../lib/authClient';
 import { Select } from './Select';
 
-// Only these two categories are structurally verifiable from the stored Alchemy
-// transfer data (NFT mint = transfer from the zero address; airdrop/incoming =
-// incoming token transfer). The other categories can't be verified yet, so we
+// Only these categories are structurally verifiable from the stored Alchemy
+// transfer data: token_mint (ERC-20/faucet mint = fungible transfer from the
+// zero address — the dominant real event on testnet), nft_mint (ERC-721/1155
+// transfer from the zero address), airdrop_claim (incoming token transfer not
+// from the zero address). The other categories can't be verified yet, so we
 // don't offer them here — they'd just earn nothing and confuse new users.
 const LABEL_OPTIONS: { id: string; label: string }[] = [
+  { id: 'token_mint', label: 'Token mint / faucet claim' },
   { id: 'nft_mint', label: 'NFT mint' },
   { id: 'airdrop_claim', label: 'Airdrop / incoming tokens' },
 ];
@@ -41,10 +44,11 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
   const [loading, setLoading] = useState(true);
   const [loadingTxs, setLoadingTxs] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [busyHash, setBusyHash] = useState<string>('');
   const [toast, setToast] = useState<string>('');
 
-  const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+  const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
 
   const loadProgress = useCallback(async () => {
     try {
@@ -98,15 +102,43 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
     })();
   }, [loadProgress, loadTxs]);
 
+  // Auto-detect every structurally-verifiable transaction in the wallet and
+  // award Honor in one shot — no manual per-row labeling. The backend enforces
+  // the same lifetime cap / daily limit / idempotency as manual labeling.
+  const runAutoScore = useCallback(async (walletId: number, silent = false) => {
+    setScanning(true);
+    if (!silent) flash('Scanning your history for verifiable Honor…');
+    try {
+      const res = await authFetch(`/api/wallets/${walletId}/auto-score-honor`, { method: 'POST' });
+      const j = await res.json().catch(() => null);
+      const d = j?.data;
+      if (d) {
+        const earned = Number(d.honor_awarded_total || 0);
+        const count = Number(d.awarded_count || 0);
+        if (earned > 0) {
+          flash(`+${earned} Honor from ${count} verified ${count === 1 ? 'transaction' : 'transactions'} ⚡`);
+          await loadProgress();
+          onHonorEarned?.();
+        } else if (!silent) {
+          flash(d.cap_reached ? 'You’ve earned the maximum Honor from labeling.' : 'No new verifiable transactions found to score.');
+        }
+        await loadTxs(walletId);
+      }
+    } catch { /* ignore */ }
+    setScanning(false);
+  }, [loadProgress, loadTxs, onHonorEarned]);
+
   const handleImport = async () => {
     if (!activeWalletId) return;
     setImporting(true);
     flash('Importing your wallet history…');
     try {
       await authFetch(`/api/wallets/${activeWalletId}/transactions/import`, { method: 'POST' });
-      // Import runs in the background; give it a moment then reload.
+      // Import runs in the background; give it a moment then reload, then
+      // immediately auto-score so the user gets Honor without labeling by hand.
       await new Promise(r => setTimeout(r, 6000));
       await loadTxs(activeWalletId);
+      await runAutoScore(activeWalletId, true);
     } catch { /* ignore */ }
     setImporting(false);
   };
@@ -192,7 +224,7 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
         <>
           <p style={{ fontSize: '12px', color: C.sub, lineHeight: 1.5, margin: '10px 0' }}>
             <Info size={12} style={{ verticalAlign: '-1px', marginRight: '4px', color: C.faint }} />
-            Tag your <b style={{ color: C.text }}>NFT mints</b> and <b style={{ color: C.text }}>incoming airdrops/tokens</b> in your wallet history — each one we can verify on-chain earns <b style={{ color: C.goldBright }}>Honor</b> (up to {progress?.lifetime_cap ?? 20}).
+            We scan your wallet for <b style={{ color: C.text }}>token/faucet mints</b>, <b style={{ color: C.text }}>NFT mints</b> and <b style={{ color: C.text }}>incoming airdrops</b> — each one we can verify on-chain earns <b style={{ color: C.goldBright }}>Honor</b> (up to {progress?.lifetime_cap ?? 20}).
             {' '}{capReached ? 'You’ve hit the labeling cap.' : `${remainingToday} of ${progress?.daily_limit ?? 5} left today.`}
           </p>
 
@@ -221,6 +253,33 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
               </button>
             </div>
           ) : (
+            <>
+              {/* Fast path: auto-detect & award across the whole history. */}
+              {!capReached && (
+                <button
+                  onClick={() => activeWalletId && runAutoScore(activeWalletId)}
+                  disabled={scanning || remainingToday <= 0}
+                  style={{
+                    ...primaryBtn,
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '7px',
+                    padding: '11px',
+                    marginTop: '4px',
+                    opacity: scanning || remainingToday <= 0 ? 0.6 : 1,
+                    cursor: scanning || remainingToday <= 0 ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {scanning
+                    ? <><RefreshCw className="animate-spin" size={14} /> Scanning your history…</>
+                    : <><Zap size={14} /> Scan my history for Honor</>}
+                </button>
+              )}
+              <p style={{ fontSize: '10px', color: C.faint, textAlign: 'center', margin: '8px 0 2px' }}>
+                Or label transactions individually below.
+              </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', maxHeight: '320px', overflowY: 'auto' }}>
               {txs.map((t) => {
                 const hash = t.tx_hash || t.hash || '';
@@ -228,7 +287,8 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
                 const raw = t.raw || {};
                 const asset = raw.asset || raw.rawContract?.symbol;
                 const category = raw.category;
-                const isMintHint = category && ['erc721', 'erc1155', 'specialnft'].includes(String(category).toLowerCase()) && String(raw.from || '').toLowerCase().startsWith('0x000000000000');
+                // from == zero address ⇒ a mint (ERC-20/721/1155 all share this convention).
+                const isMintHint = !!category && String(raw.from || '').toLowerCase().startsWith('0x000000000000');
                 const subtitle = [t.tx_type, asset, isMintHint ? 'mint' : category].filter(Boolean).join(' · ') || 'On-chain transfer';
                 return (
                   <div key={hash} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: C.deep, border: `1px solid ${earned ? C.gold + '33' : C.border}`, borderRadius: '10px', padding: '8px 10px' }}>
@@ -260,6 +320,7 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
                 );
               })}
             </div>
+            </>
           )}
         </>
       )}
