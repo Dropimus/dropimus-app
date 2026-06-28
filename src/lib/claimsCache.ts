@@ -141,14 +141,18 @@ export async function prefetchActiveClaims(): Promise<Claim[]> {
         const rawCat = c.category || '';
         const formattedCat = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase() : '';
 
+        const anchorerObj = c.anchorer && typeof c.anchorer === 'object' ? c.anchorer : null;
         return {
           id: Number(c.id),
           title: c.title || 'Untitled Claim',
           category: formattedCat,
           chain: c.chain || 'Base',
-          anchorer: c.anchorer || '',
-          tier: c.tier || '',
-          capital: Math.round(parseFloat(c.capital_stake ?? c.capital ?? '0')) || 0,
+          anchorer: (typeof c.anchorer === 'string' ? c.anchorer : '')
+            || c.anchorer_address || c.submitter_address || c.creator_address || anchorerObj?.address || '',
+          anchorerName: c.anchorer_username || c.anchorer_name || c.creator_username
+            || anchorerObj?.username || c.submitter?.username || c.creator?.username || '',
+          tier: c.tier || c.anchorer_tier || '',
+          capital: Math.round(parseFloat(c.capital_staked ?? c.capital_stake ?? c.capital ?? '0')) || 0,
           honorStaked: Number(c.honor_stake ?? c.honorStaked ?? 0) || 0,
           callers: Number(c.callers ?? 0) || 0,
           proven: c.proven !== undefined ? Number(c.proven) : 0,
