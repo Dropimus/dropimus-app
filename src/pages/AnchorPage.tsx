@@ -12,6 +12,7 @@ import { C, FONTS } from '../tokens';
 import { IconParachute } from '../components/icons';
 import { CLAIM_TYPES, METRICS, RELATIVE_WINDOWS, PROOF_TYPES } from '../data';
 import Btn from '../components/shared/Btn';
+import { Select } from '../components/shared/Select';
 import { Claim, getAppKit } from '../lib/walletAndGoogle';
 import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
@@ -410,16 +411,28 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
 
         <Section title="The exact condition" hint="What has to be true for the claim to resolve YES?">
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <select value={selectedMetricId} onChange={(e) => setSelectedMetricId(e.target.value)} style={{ ...input, flex: '1 1 140px' }}>
-              {availableMetrics.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
+            <div style={{ flex: '1 1 140px' }}>
+              <Select
+                value={selectedMetricId}
+                onChange={(v) => setSelectedMetricId(v)}
+                options={availableMetrics.map((m) => ({ value: m.id, label: m.label }))}
+                ariaLabel="Metric"
+              />
+            </div>
             {!isBool && (
               <>
-                <select value={direction} onChange={(e) => setDirection(e.target.value as any)} style={{ ...input, flex: '0 0 110px' }}>
-                  <option value="above">is above</option>
-                  <option value="below">is below</option>
-                  <option value="equals">equals</option>
-                </select>
+                <div style={{ flex: '0 0 120px' }}>
+                  <Select
+                    value={direction}
+                    onChange={(v) => setDirection(v as any)}
+                    options={[
+                      { value: 'above', label: 'is above' },
+                      { value: 'below', label: 'is below' },
+                      { value: 'equals', label: 'equals' },
+                    ]}
+                    ariaLabel="Direction"
+                  />
+                </div>
                 <input value={threshold} onChange={(e) => setThreshold(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="value" inputMode="decimal" style={{ ...input, flex: '1 1 100px' }} />
               </>
             )}
@@ -508,9 +521,12 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
 
               {showAddProofForm ? (
                 <div style={{ background: C.deep, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <select value={proofType} onChange={(e) => setProofType(e.target.value)} style={input}>
-                    {PROOF_TYPES.filter((pt) => pt.id !== 'none').map((pt) => <option key={pt.id} value={pt.id}>{pt.label}</option>)}
-                  </select>
+                  <Select
+                    value={proofType}
+                    onChange={(v) => setProofType(v)}
+                    options={PROOF_TYPES.filter((pt) => pt.id !== 'none').map((pt) => ({ value: pt.id, label: pt.label }))}
+                    ariaLabel="Proof type"
+                  />
                   <input value={proofTitle} onChange={(e) => setProofTitle(e.target.value)} placeholder="Short title (e.g. Snapshot tx)" style={input} />
                   <textarea value={proofContent} onChange={(e) => setProofContent(e.target.value)} placeholder="Explain how this supports the claim" rows={2} style={{ ...input, resize: 'vertical' }} />
                   <input value={proofMediaUrl} onChange={(e) => setProofMediaUrl(e.target.value)} placeholder="Link (optional)" style={input} />

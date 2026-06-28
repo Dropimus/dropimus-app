@@ -13,6 +13,7 @@ import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
 import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
+import { Select } from '../components/shared/Select';
 import { PROOF_TYPES } from '../data';
 import { submitCallForClaim, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
@@ -83,6 +84,12 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
         const res = await DropimusAPI.getClaimById(claimProp.id);
         const d = res?.data ?? res;
         if (!cancelled && d && (d.status || d.anchor_tx_hash || d.content_hash)) {
+          // Anchorer attribution + locked capital, tolerating backend field-name variants.
+          const anchorerAddr = d.anchorer_address || d.anchorer || d.submitter_address || d.creator_address || '';
+          const anchorerName = d.anchorer_username || d.anchorer_name || d.submitted_by_username
+            || d.anchorer?.username || d.submitter?.username || d.creator?.username || '';
+          const capitalRaw = d.capital_staked ?? d.capital_stake ?? d.capital ?? d.total_capital ?? d.anchor_capital;
+          const capitalNum = capitalRaw != null ? Math.round(Number(capitalRaw)) : NaN;
           setFreshClaim(prev => ({
             ...(prev || claimProp),
             status: d.status || claimProp.status,
@@ -91,6 +98,9 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
             faded: d.faded !== undefined ? Number(d.faded) : (prev || claimProp).faded,
             callers: d.callers !== undefined ? Number(d.callers) : (prev || claimProp).callers,
             onchainCallId: d.onchain_call_id ?? d.onchainCallId ?? (prev || claimProp).onchainCallId ?? null,
+            anchorer: (typeof anchorerAddr === 'string' && anchorerAddr) ? anchorerAddr : (prev || claimProp).anchorer,
+            anchorerName: anchorerName || (prev || claimProp).anchorerName,
+            capital: Number.isFinite(capitalNum) && capitalNum > 0 ? capitalNum : (prev || claimProp).capital,
           }));
           // Keep polling while the claim is still confirming on-chain.
           if (d.status === 'pending_onchain') timer = setTimeout(load, 8000);
@@ -403,7 +413,10 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: C.text }}>
-              Anchored by {claim.anchorer}
+              Anchored by {claim.anchorerName
+                || (claim.anchorer && claim.anchorer.startsWith('0x') && claim.anchorer.length > 10
+                  ? `${claim.anchorer.slice(0, 6)}…${claim.anchorer.slice(-4)}`
+                  : claim.anchorer) || 'an anchor'}
             </span>
             <span style={{ fontSize: '10px', color: C.sub }}>
               Protocol Role: <TierBadge tier={claim.tier} />
@@ -684,24 +697,17 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
               <label style={{ fontSize: '11px', color: C.sub, display: 'block', marginBottom: '4px' }}>
                 Upgrade Consensual Evidence Tier (Optional):
               </label>
-              <select
+              <Select
                 value={upgradeTier}
-                onChange={(e) => setUpgradeTier(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: C.deep,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '12px',
-                  padding: '6px 10px',
-                  outline: 'none',
-                }}
-              >
-                <option value="">Keep current tier</option>
-                <option value="soft">Soft Tier (2.0x Reward Multiplier)</option>
-                <option value="hard">Hard Tier (6.0x Reward Multiplier)</option>
-              </select>
+                onChange={(v) => setUpgradeTier(v)}
+                options={[
+                  { value: '', label: 'Keep current tier' },
+                  { value: 'soft', label: 'Soft Tier (2.0x Reward Multiplier)' },
+                  { value: 'hard', label: 'Hard Tier (6.0x Reward Multiplier)' },
+                ]}
+                ariaLabel="Evidence tier"
+                style={{ fontSize: '12px', padding: '6px 10px' }}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>

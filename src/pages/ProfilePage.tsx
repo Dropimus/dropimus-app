@@ -48,10 +48,16 @@ interface StakedInteraction {
 
 export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignOut }: ProfilePageProps) {
   const [activeTab, setActiveTab] = useState<'claims' | 'transactions' | 'anchors'>('claims');
-  
+
+  // Address-equality that is case-insensitive AND never matches on empty values —
+  // otherwise a claim with no mapped anchorer ('') would falsely match a session
+  // whose wallet address hasn't loaded yet (''), leaking other users' claims.
+  const myAddr = (wallet.address || '').toLowerCase();
+  const isMine = (a?: string) => !!myAddr && !!a && a.toLowerCase() === myAddr;
+
   // Filter claims anchored or voted on by this current wallet address
   const userClaims = claims.filter(
-    (c) => c.anchorer === wallet.address || c.calls.some((v) => v.wallet === wallet.address)
+    (c) => isMine(c.anchorer) || c.calls.some((v) => isMine(v.wallet))
   );
 
   // Generate real dynamic transaction interactions list from ACTUAL protocol memory dataset
@@ -59,7 +65,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
   claims.forEach((c) => {
     // If the user anchored this claim, it's a genesis interaction
-    if (c.anchorer === wallet.address) {
+    if (isMine(c.anchorer)) {
       interactions.push({
         id: `anchor-${c.id}`,
         type: 'anchor',
@@ -79,7 +85,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
     // Find all calls by the user in this claim
     c.calls.forEach((call, index) => {
-      if (call.wallet === wallet.address) {
+      if (isMine(call.wallet)) {
         const isWinner = c.status === 'open' ? undefined : (call.side === c.status);
         interactions.push({
           id: `call-${c.id}-${index}`,
@@ -117,6 +123,9 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
   useEffect(() => {
     const fetchRecent = async () => {
       setIsLoadingRecent(true);
+      // Clear any anchors from a previous session so they can't flash on screen
+      // for the wrong account while the new fetch is in flight.
+      setRecentAnchors([]);
       try {
         const token = localStorage.getItem('dropimus_jwt_access_token') || '';
         if (token) {
@@ -126,7 +135,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
           } else {
             // Fallback: build from userClaims where status contains anchor parameters
             const localAnchors = userClaims
-              .filter(c => c.anchorer === wallet.address)
+              .filter(c => isMine(c.anchorer))
               .map(c => ({
                 id: c.id,
                 title: c.title,
@@ -142,7 +151,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
           }
         } else {
           const localAnchors = userClaims
-            .filter(c => c.anchorer === wallet.address)
+            .filter(c => isMine(c.anchorer))
             .map(c => ({
               id: c.id,
               title: c.title,
@@ -229,8 +238,8 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
               }}
             />
 
-            <div>
-              <h2 style={{ fontFamily: FONTS.display, fontSize: '22px', fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+            <div style={{ maxWidth: '100%', minWidth: 0 }}>
+              <h2 style={{ fontFamily: FONTS.display, fontSize: '22px', fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: '4px', wordBreak: 'break-word' }}>
                 {googleUser.loggedIn && googleUser.name
                   ? googleUser.name
                   : (wallet.address
@@ -238,7 +247,10 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                       : 'Your Profile')}
               </h2>
               {wallet.address && (
-                <span className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block">
+                <span
+                  className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block"
+                  style={{ maxWidth: '100%', wordBreak: 'break-all', lineHeight: 1.5 }}
+                >
                   {wallet.address}
                 </span>
               )}
@@ -256,7 +268,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                   CLAIMS ANCHORED
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.text, fontFamily: FONTS.display }}>
-                  {claims.filter((c) => c.anchorer === wallet.address).length}
+                  {claims.filter((c) => isMine(c.anchorer)).length}
                 </span>
               </div>
 
@@ -265,7 +277,7 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                   PROVEN
                 </span>
                 <span style={{ fontSize: '18px', fontWeight: 900, color: C.blueLight, fontFamily: FONTS.display }}>
-                  {claims.filter((c) => c.status === 'proven').length}
+                  {userClaims.filter((c) => c.status === 'proven').length}
                 </span>
               </div>
 
