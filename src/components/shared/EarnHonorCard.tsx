@@ -58,13 +58,20 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
   const loadTxs = useCallback(async (walletId: number) => {
     setLoadingTxs(true);
     try {
-      const res = await authFetch(`/api/wallets/${walletId}/transactions?per_page=25`);
+      const res = await authFetch(`/api/wallets/${walletId}/transactions?per_page=50`);
       if (res.ok) {
         const j = await res.json().catch(() => null);
         const d = j?.data;
         // Contract: api_response wraps { transactions: [...] } under data.
         const list = d?.transactions || (Array.isArray(d) ? d : []);
-        setTxs(Array.isArray(list) ? list : []);
+        // A tx_hash can now have multiple transfer legs — collapse to one row per
+        // hash (the backend labels/awards across all legs of the same tx).
+        const byHash = new Map<string, any>();
+        for (const t of (Array.isArray(list) ? list : [])) {
+          const h = t.tx_hash || t.hash;
+          if (h && !byHash.has(h)) byHash.set(h, t);
+        }
+        setTxs(Array.from(byHash.values()));
       } else {
         setTxs([]);
       }
@@ -216,11 +223,16 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
               {txs.map((t) => {
                 const hash = t.tx_hash || t.hash || '';
                 const earned = !!t.honor_awarded;
+                const raw = t.raw || {};
+                const asset = raw.asset || raw.rawContract?.symbol;
+                const category = raw.category;
+                const isMintHint = category && ['erc721', 'erc1155', 'specialnft'].includes(String(category).toLowerCase()) && String(raw.from || '').toLowerCase().startsWith('0x000000000000');
+                const subtitle = [t.tx_type, asset, isMintHint ? 'mint' : category].filter(Boolean).join(' · ') || 'On-chain transfer';
                 return (
                   <div key={hash} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: C.deep, border: `1px solid ${earned ? C.gold + '33' : C.border}`, borderRadius: '10px', padding: '8px 10px' }}>
                     <div style={{ minWidth: 0 }}>
                       <span style={{ fontFamily: FONTS.mono, fontSize: '11px', color: C.text, display: 'block' }}>{shortHash(hash)}</span>
-                      <span style={{ fontSize: '9px', color: C.faint }}>{t.tx_type || t.method || 'On-chain tx'}</span>
+                      <span style={{ fontSize: '9px', color: C.faint, textTransform: 'capitalize' }}>{subtitle}</span>
                     </div>
                     {earned ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: C.goldBright, fontWeight: 700 }}>
