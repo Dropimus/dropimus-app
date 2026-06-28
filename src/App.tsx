@@ -82,7 +82,7 @@ const mapBackendClaim = (c: any): Claim => {
     resolutionDate: c.resolution_date || c.resolutionDate,
     metric: c.metric || '',
     source: c.source || '',
-    txHash: c.anchor_tx_hash || c.txHash || '',
+    txHash: c.anchor_tx_hash || c.content_hash || c.tx_hash || c.onchain_tx_hash || c.txHash || '',
   };
 };
 
@@ -439,6 +439,15 @@ export default function App() {
 
     return () => clearInterval(pingInterval);
   }, [wallet.connected, googleUser.loggedIn]);
+
+  // Auto-refresh while any claim is still confirming on-chain, so its status
+  // flips from "anchoring" to "active" without the user manually reloading.
+  useEffect(() => {
+    const hasPending = claimsList.some(c => c.status === 'pending_onchain');
+    if (!hasPending) return;
+    const t = setInterval(() => { refreshState(); }, 10000);
+    return () => clearInterval(t);
+  }, [claimsList]);
 
   // Back trigger to lobbies
   const handleClearSelectedClaim = () => {

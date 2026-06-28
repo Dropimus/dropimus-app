@@ -63,9 +63,41 @@ interface ClaimDetailPageProps {
   initialExpand?: boolean;
 }
 
-export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 0, initialExpand }: ClaimDetailPageProps) {
+export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 0, initialExpand }: ClaimDetailPageProps) {
   const [makeCallExpanded, setMakeCallExpanded] = useState(initialExpand || false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
+
+  // The list passes a possibly-stale claim (e.g. still "pending_onchain" right
+  // after anchoring). Fetch the latest by id on open and poll while it's still
+  // confirming, so the status flips to active and the tx hash appears without a
+  // manual reload. Fresh fields are merged onto the passed object.
+  const [freshClaim, setFreshClaim] = useState<Claim | null>(null);
+  const claim = freshClaim || claimProp;
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: any;
+    const load = async () => {
+      try {
+        const res = await DropimusAPI.getClaimById(claimProp.id);
+        const d = res?.data ?? res;
+        if (!cancelled && d && (d.status || d.anchor_tx_hash || d.content_hash)) {
+          setFreshClaim(prev => ({
+            ...(prev || claimProp),
+            status: d.status || claimProp.status,
+            txHash: d.anchor_tx_hash || d.content_hash || d.tx_hash || (prev || claimProp).txHash || '',
+            proven: d.proven !== undefined ? Number(d.proven) : (prev || claimProp).proven,
+            faded: d.faded !== undefined ? Number(d.faded) : (prev || claimProp).faded,
+            callers: d.callers !== undefined ? Number(d.callers) : (prev || claimProp).callers,
+          }));
+          // Keep polling while the claim is still confirming on-chain.
+          if (d.status === 'pending_onchain') timer = setTimeout(load, 8000);
+        }
+      } catch { /* ignore — keep showing the passed claim */ }
+    };
+    load();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [claimProp.id, claimProp.status]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -368,13 +400,24 @@ export function ClaimDetailPage({ claim, onBack, onUpdate, walletConnected, wall
             border: `1px solid ${C.border}`,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
             <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em' }}>
-              CONTENT HASH · BASE CHAIN (VERIFIED)
+              {claim.txHash ? 'ANCHOR TX · BASE SEPOLIA' : 'ANCHOR TX · BASE SEPOLIA'}
             </span>
-            <span style={{ fontFamily: FONTS.mono, color: C.blueLight, fontSize: '11px', wordBreak: 'break-all' }}>
-              {claim.txHash || "Pending on-chain confirmation"}
-            </span>
+            {claim.txHash ? (
+              <a
+                href={`https://sepolia.basescan.org/tx/${claim.txHash.startsWith('0x') ? claim.txHash : '0x' + claim.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: FONTS.mono, color: C.blueLight, fontSize: '11px', wordBreak: 'break-all', textDecoration: 'underline' }}
+              >
+                {claim.txHash.slice(0, 18)}… ↗
+              </a>
+            ) : (
+              <span style={{ fontFamily: FONTS.mono, color: C.sub, fontSize: '11px' }}>
+                {claim.status === 'pending_onchain' ? 'Confirming on-chain…' : 'Not yet available'}
+              </span>
+            )}
           </div>
         </div>
       </div>
