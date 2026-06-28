@@ -11,7 +11,7 @@ import { Claim, Call, Proof, isClaimLive, getAppKit } from '../lib/walletAndGoog
 import CatPill from '../components/shared/CatPill';
 import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
-import ConvictionBar from '../components/shared/ConvictionBar';
+import ConvictionGauge from '../components/shared/ConvictionGauge';
 import Avatar from '../components/shared/Avatar';
 import Btn from '../components/shared/Btn';
 import { Select } from '../components/shared/Select';
@@ -830,9 +830,9 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           </span>
         </div>
 
-        {/* Conviction bar — single source of sentiment, market-grade */}
+        {/* Conviction gauge — single source of sentiment, market-grade */}
         <div style={{ width: '100%', padding: '4px 0' }}>
-          <ConvictionBar proven={claim.proven} faded={claim.faded} large hasPositions={(totalProven + totalFaded) > 0} />
+          <ConvictionGauge proven={claim.proven} faded={claim.faded} large hasPositions={(totalProven + totalFaded) > 0} live={isClaimLive(claim.status)} />
         </div>
 
         <div style={{ width: '100%', height: '1px', background: C.hairline }} />
