@@ -42,6 +42,11 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
   const [freshClaim, setFreshClaim] = useState<Claim | null>(null);
   const claim = freshClaim || claimProp;
 
+  // Real, time-ordered positions for the market chart (each call's timestamp +
+  // direction + stake), fetched from the market-detail endpoint — the plain
+  // claim payload only carries stake-sampled positions without timestamps.
+  const [timeCalls, setTimeCalls] = useState<{ side: 'proven' | 'faded'; stake: number }[] | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     let timer: any;
@@ -83,6 +88,34 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
     load();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [claimProp.id, claimProp.status]);
+
+  // Fetch the full, time-ordered call history for the believe-vs-doubt chart.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await DropimusAPI.getMarketClaimById(claimProp.id);
+        const d = res?.data ?? res;
+        const rawCalls = Array.isArray(d?.calls) ? d.calls : [];
+        if (!rawCalls.length) return;
+        const mapped = rawCalls.map((c: any) => {
+          const dir = c.direction ?? c.side;
+          let side: 'proven' | 'faded';
+          if (dir === 'proven' || dir === 'faded') side = dir;
+          else if (typeof c.confidence === 'number') side = c.confidence > 0 ? 'proven' : 'faded';
+          else if (typeof c.vote === 'number') side = c.vote > 0 ? 'proven' : 'faded';
+          else side = c.is_proven ? 'proven' : 'faded';
+          const stake = Number(c.capital_stake ?? c.capitalStaked ?? c.stake ?? c.capital ?? 0) || 0;
+          const tsRaw = c.created_at ?? c.timestamp ?? c.called_at ?? c.submitted_at ?? null;
+          const t = tsRaw ? new Date(tsRaw).getTime() : 0;
+          return { side, stake, t };
+        }).filter((c: any) => c.stake > 0);
+        mapped.sort((a: any, b: any) => a.t - b.t); // chronological — the true market history
+        if (!cancelled) setTimeCalls(mapped.map(({ side, stake }: any) => ({ side, stake })));
+      } catch { /* keep the stake-sampled fallback */ }
+    })();
+    return () => { cancelled = true; };
+  }, [claimProp.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -800,7 +833,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           <MarketLines
             proven={claim.proven}
             faded={claim.faded}
-            sampledCalls={claim.sampledCalls}
+            sampledCalls={timeCalls ?? claim.sampledCalls}
             capital={claim.capital}
             callers={claim.callers}
             large
