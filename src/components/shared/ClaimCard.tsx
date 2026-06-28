@@ -9,7 +9,8 @@ import { C, FONTS } from '../../tokens';
 import CatPill from './CatPill';
 import StatusPill from './StatusPill';
 import TierBadge from './TierBadge';
-import SentimentOrb from './SentimentOrb';
+import ConvictionBar from './ConvictionBar';
+import Avatar from './Avatar';
 import Btn from './Btn';
 import { Claim, isClaimLive } from '../../lib/walletAndGoogle';
 
@@ -32,7 +33,6 @@ const fmt = (n: number, currency = false): string => {
 export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) {
   const totalWeight = (claim.proven || 0) + (claim.faded || 0);
   const hasPositions = totalWeight > 0;
-  const believePct = hasPositions ? Math.round(((claim.proven || 0) / totalWeight) * 100) : 0;
 
   let accent = 'rgba(255,255,255,0.08)';
   if (claim.status === 'proven') accent = `${C.blueLight}44`;
@@ -86,34 +86,24 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         {claim.title}
       </h3>
 
-      {/* 3. Sentiment orb (single source of sentiment) + economic facts */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
-        {hasPositions ? (
-          <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <SentimentOrb proven={claim.proven} faded={claim.faded} size={72} animate={isClaimLive(claim.status)} />
-            <div style={{ fontSize: '10px', fontWeight: 700, marginTop: '4px', color: believePct >= 50 ? C.blueLight : C.fadedBright }}>
-              {believePct >= 50 ? `${believePct}% Believe` : `${100 - believePct}% Doubt`}
-            </div>
-          </div>
-        ) : (
-          <div style={{ flexShrink: 0, width: '72px', height: '72px', borderRadius: '50%', border: `1px dashed ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-            <span style={{ fontSize: '9px', color: C.faint, lineHeight: 1.3, padding: '0 8px' }}>No positions yet</span>
-          </div>
-        )}
+      {/* 3. Credibility market: conviction bar (single source of sentiment) */}
+      <div style={{ marginBottom: '14px' }}>
+        <ConvictionBar proven={claim.proven} faded={claim.faded} hasPositions={hasPositions} />
+      </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <Stat icon={<Coins size={12} />} label="Staked" value={fmt(claim.capital, true)} color={C.goldBright} />
-          <Stat icon={<Users size={12} />} label="Positions" value={String(claim.callers || 0)} color={C.text} />
-          {claim.daysLeft > 0 && isClaimLive(claim.status) && (
-            <Stat icon={<Clock size={12} />} label="Resolves in" value={`${claim.daysLeft}d`} color={C.blueLight} />
-          )}
-        </div>
+      {/* Economic facts */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+        <Stat icon={<Coins size={12} />} label="Staked" value={fmt(claim.capital, true)} color={C.goldBright} />
+        <Stat icon={<Users size={12} />} label="Positions" value={String(claim.callers || 0)} color={C.text} />
+        {claim.daysLeft > 0 && isClaimLive(claim.status) && (
+          <Stat icon={<Clock size={12} />} label="Resolves in" value={`${claim.daysLeft}d`} color={C.blueLight} />
+        )}
       </div>
 
       {/* 4. Who anchored it + how much they locked */}
       {anchoredBy && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
-          <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: `linear-gradient(135deg, ${C.gold}, ${C.blueLight})`, flexShrink: 0 }} />
+          <Avatar seed={anchoredBy} size={20} />
           <span style={{ fontSize: '10px', color: C.faint }}>Anchored by</span>
           <span style={{ fontFamily: claim.anchorerName ? FONTS.body : FONTS.mono, fontSize: '11px', color: C.sub, fontWeight: claim.anchorerName ? 600 : 400 }}>
             {anchoredBy}
@@ -162,19 +152,21 @@ function Stat({ icon, label, value, color }: { icon: React.ReactNode; label: str
   return (
     <div
       style={{
+        flex: 1,
         background: C.elevated,
-        borderRadius: '8px',
-        padding: '6px 10px',
+        borderRadius: '10px',
+        padding: '8px 10px',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: '3px',
+        minWidth: 0,
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', fontWeight: 700, color: C.sub, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '8px', fontWeight: 700, color: C.sub, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
         <span style={{ color: C.faint }}>{icon}</span>
         {label}
       </span>
-      <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 700, color }}>{value}</span>
+      <span style={{ fontFamily: FONTS.mono, fontSize: '14px', fontWeight: 700, color }}>{value}</span>
     </div>
   );
 }

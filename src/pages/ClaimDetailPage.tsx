@@ -11,7 +11,8 @@ import { Claim, Call, Proof, isClaimLive, getAppKit } from '../lib/walletAndGoog
 import CatPill from '../components/shared/CatPill';
 import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
-import SentimentOrb from '../components/shared/SentimentOrb';
+import ConvictionBar from '../components/shared/ConvictionBar';
+import Avatar from '../components/shared/Avatar';
 import Btn from '../components/shared/Btn';
 import { Select } from '../components/shared/Select';
 import { PROOF_TYPES } from '../data';
@@ -121,12 +122,9 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
   const [selectedSide, setSelectedSide] = useState<'proven' | 'faded' | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   
-  // Dynamic Confidence Calculations
+  // Whether this market has any positions yet (drives the conviction bar state).
   const totalProven = claim.proven;
   const totalFaded = claim.faded;
-  const totalConfidenceValue = (totalProven + totalFaded) > 0 
-    ? Math.round((totalProven / (totalProven + totalFaded)) * 100)
-    : 50;
 
   // MakeCall State
   const honorStake = 0;
@@ -402,27 +400,30 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
         </p>
 
         {/* Anchorer meta banner */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${C.gold}, ${C.blueLight})`,
-            }}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: C.text }}>
-              Anchored by {claim.anchorerName
-                || (claim.anchorer && claim.anchorer.startsWith('0x') && claim.anchorer.length > 10
-                  ? `${claim.anchorer.slice(0, 6)}…${claim.anchorer.slice(-4)}`
-                  : claim.anchorer) || 'an anchor'}
-            </span>
-            <span style={{ fontSize: '10px', color: C.sub }}>
-              Protocol Role: <TierBadge tier={claim.tier} />
-            </span>
-          </div>
-        </div>
+        {(() => {
+          const anchorLabel = claim.anchorerName
+            || (claim.anchorer && claim.anchorer.startsWith('0x') && claim.anchorer.length > 10
+              ? `${claim.anchorer.slice(0, 6)}…${claim.anchorer.slice(-4)}`
+              : claim.anchorer) || '';
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <Avatar seed={anchorLabel || String(claim.id)} size={30} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: C.text }}>
+                  Anchored by{' '}
+                  <span style={{ fontFamily: claim.anchorerName ? FONTS.body : FONTS.mono }}>
+                    {anchorLabel || 'an anonymous anchor'}
+                  </span>
+                </span>
+                {claim.tier && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: C.sub }}>
+                    Protocol role: <TierBadge tier={claim.tier} />
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Content Hash verification line */}
         <div
@@ -814,17 +815,18 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
       >
         <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: C.sub, fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            LIVE SENTIMENT
+            Credibility Market
           </span>
-          <span style={{ fontFamily: FONTS.mono, fontSize: '13px', fontWeight: 800, color: (totalProven + totalFaded) === 0 ? C.sub : totalConfidenceValue >= 50 ? '#10B981' : C.fadedBright }}>
-            {(totalProven + totalFaded) === 0
-              ? 'No positions yet'
-              : (totalConfidenceValue >= 50 ? `${totalConfidenceValue}% Believe` : `${100 - totalConfidenceValue}% Doubt`)}
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isClaimLive(claim.status) ? '#10B981' : C.sub }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isClaimLive(claim.status) ? '#10B981' : C.sub, boxShadow: isClaimLive(claim.status) ? '0 0 8px #10B981' : 'none' }} />
+            {isClaimLive(claim.status) ? 'Live' : 'Settled'}
           </span>
         </div>
 
-        {/* Large Orb — single source of sentiment */}
-        <SentimentOrb proven={claim.proven} faded={claim.faded} size={100} animate={isClaimLive(claim.status)} />
+        {/* Conviction bar — single source of sentiment, market-grade */}
+        <div style={{ width: '100%', padding: '4px 0' }}>
+          <ConvictionBar proven={claim.proven} faded={claim.faded} large hasPositions={(totalProven + totalFaded) > 0} />
+        </div>
 
         <div style={{ width: '100%', height: '1px', background: C.hairline }} />
 
@@ -965,7 +967,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 800, letterSpacing: '0.08em' }}>
+                  <span style={{ fontSize: '10px', color: C.blueBright, fontWeight: 800, letterSpacing: '0.08em' }}>
                     STEP 1: BELIEVE OR DOUBT (REQUIRED)
                   </span>
                   {!selectedSide && (
@@ -982,14 +984,14 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
                       flex: 1,
                       padding: '12px 6px',
                       borderRadius: '10px',
-                      background: selectedSide === 'proven' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                      border: `2px solid ${selectedSide === 'proven' ? '#10B981' : C.border}`,
-                      color: selectedSide === 'proven' ? '#10B981' : C.sub,
+                      background: selectedSide === 'proven' ? 'rgba(0, 82, 255, 0.15)' : 'transparent',
+                      border: `2px solid ${selectedSide === 'proven' ? C.blueLight : C.border}`,
+                      color: selectedSide === 'proven' ? C.blueBright : C.sub,
                       fontSize: '12px',
                       fontWeight: 800,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      boxShadow: selectedSide === 'proven' ? '0 0 16px rgba(16, 185, 129, 0.25)' : 'none',
+                      boxShadow: selectedSide === 'proven' ? '0 0 16px rgba(0, 82, 255, 0.25)' : 'none',
                     }}
                   >
                     BELIEVE
