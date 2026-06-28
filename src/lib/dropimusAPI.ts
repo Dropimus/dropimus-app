@@ -294,6 +294,21 @@ export class DropimusAPI {
   }
 
   /**
+   * GET /api/market/claims/{id} — claim enriched with live market data and the
+   * full, time-ordered list of calls (each with timestamp + direction + stake),
+   * which the plain /claims/{id} endpoint does not include.
+   */
+  static async getMarketClaimById(id: string | number): Promise<any> {
+    try {
+      const res = await fetch(`${this.getBaseUrl()}/api/market/claims/${id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return { success: false, detail: "Not found" };
+    }
+  }
+
+  /**
    * 7. POST /api/calls/claim/{claim_id}/call
    */
   static async submitCall(claimId: string | number, payload: {
