@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Zap, Shield, Settings, Scale, Link, AlertTriangle, Coins, TrendingUp, ChevronUp, ChevronDown, Award, Landmark, Trophy, Folder, Lock, CheckCircle2, RefreshCw, HelpCircle } from 'lucide-react';
 import { C, FONTS } from '../tokens';
 import { authFetch } from '../lib/authClient';
 import { IconParachute } from '../components/icons';
 import HonorRing from '../components/shared/HonorRing';
+import EarnHonorCard from '../components/shared/EarnHonorCard';
 import { Wallet } from '../lib/walletAndGoogle';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { TermTooltip } from '../components/shared/TermTooltip';
@@ -37,25 +38,24 @@ export function HonorPage({ wallet }: HonorPageProps) {
   // Real escrowed USDC across active claims (0 until the backend reports it — never fake).
   const liveEscrowUsd = _num(usageData?.escrowed_usdc ?? usageData?.capital?.escrowed_usdc ?? usageData?.total_staked_usdc ?? usageData?.active_capital_usdc) ?? 0;
 
-  useEffect(() => {
-    const fetchUsage = async () => {
-      setLoadingUsage(true);
-      try {
-        const res = await authFetch('/api/me/usage');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            setUsageData(json.data);
-          }
+  const fetchUsage = useCallback(async () => {
+    setLoadingUsage(true);
+    try {
+      const res = await authFetch('/api/me/usage');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUsageData(json.data);
         }
-      } catch (err) {
-        console.error("Failed to load backend usage parameters:", err);
-      } finally {
-        setLoadingUsage(false);
       }
-    };
-    fetchUsage();
-  }, [wallet.balanceHonor]);
+    } catch (err) {
+      console.error("Failed to load backend usage parameters:", err);
+    } finally {
+      setLoadingUsage(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchUsage(); }, [wallet.balanceHonor, fetchUsage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -96,6 +96,9 @@ export function HonorPage({ wallet }: HonorPageProps) {
       >
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
+
+      {/* Onboarding: earn Honor by labeling past transactions to reach the call threshold */}
+      <EarnHonorCard onHonorEarned={fetchUsage} />
 
       {/* Interactive Honor Protocol Explainer Hover Card */}
       <div

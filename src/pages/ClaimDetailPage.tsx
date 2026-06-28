@@ -201,7 +201,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           else if (pj.already_called) reason = 'You already have a position on this claim.';
           else if (pj.claim_active === false) reason = 'This claim isn’t open for positions right now.';
           else if (pj.claim_onchain === false) reason = 'This claim is still confirming on-chain — try again shortly.';
-          else if (pj.honor_gate_pass === false) reason = `You need ${pj.honor_minimum ?? 20}+ Honor to take a position (you currently have ${pj.honor_balance ?? 0}).`;
+          else if (pj.honor_gate_pass === false) reason = `You need ${pj.honor_minimum ?? 20}+ Honor to take a position (you have ${pj.honor_balance ?? 0}). Earn Honor on the Honor tab by labeling your past transactions.`;
           else if (pj.has_balance === false) reason = `Not enough test dUSD — you need ${pj.required_usdc ?? capitalStake} dUSD. Ask the team to top up your wallet.`;
           if (reason) { setSigningStage('error'); setSigningMessage(reason); return; }
         }
