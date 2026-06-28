@@ -86,9 +86,16 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
         const d = res?.data ?? res;
         if (!cancelled && d && (d.status || d.anchor_tx_hash || d.content_hash)) {
           // Anchorer attribution + locked capital, tolerating backend field-name variants.
-          const anchorerAddr = d.anchorer_address || d.anchorer || d.submitter_address || d.creator_address || '';
-          const anchorerName = d.anchorer_username || d.anchorer_name || d.submitted_by_username
-            || d.anchorer?.username || d.submitter?.username || d.creator?.username || '';
+          // The Claim model only stores submitted_by (a user id), so a name/address
+          // appears only when the backend enriches the response — accept any spelling.
+          const aObj = (d.anchorer && typeof d.anchorer === 'object' ? d.anchorer : null)
+            || (d.submitter && typeof d.submitter === 'object' ? d.submitter : null)
+            || (d.submitted_by && typeof d.submitted_by === 'object' ? d.submitted_by : null);
+          const anchorerAddr = (typeof d.anchorer === 'string' ? d.anchorer : '')
+            || d.anchorer_address || d.submitter_address || d.submitted_by_address || d.creator_address
+            || aObj?.address || aObj?.wallet_address || aObj?.primary_wallet || '';
+          const anchorerName = d.anchorer_username || d.anchorer_name || d.submitter_username || d.submitted_by_username
+            || aObj?.username || aObj?.display_name || aObj?.full_name || '';
           const capitalRaw = d.capital_staked ?? d.capital_stake ?? d.capital ?? d.total_capital ?? d.anchor_capital;
           const capitalNum = capitalRaw != null ? Math.round(Number(capitalRaw)) : NaN;
           setFreshClaim(prev => ({

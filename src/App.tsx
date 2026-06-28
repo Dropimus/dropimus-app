@@ -63,12 +63,18 @@ const mapBackendClaim = (c: any): Claim => {
 
   // Anchorer attribution can arrive as a flat field or nested user object, under
   // several names depending on the endpoint — accept any of them.
-  const anchorerObj = c.anchorer && typeof c.anchorer === 'object' ? c.anchorer : null;
+  // Anchorer identity. The Claim model only stores submitted_by (a user id), so
+  // a name/address only appears if the backend enriches the response (e.g.
+  // anchorer_username / submitter_address). Accept every reasonable spelling +
+  // nested user object so it renders the moment the backend sends any of them.
+  const anchorerObj = c.anchorer && typeof c.anchorer === 'object' ? c.anchorer
+    : (c.submitter && typeof c.submitter === 'object' ? c.submitter
+    : (c.submitted_by && typeof c.submitted_by === 'object' ? c.submitted_by : null));
   const anchorerAddr = (typeof c.anchorer === 'string' ? c.anchorer : '')
-    || c.anchorer_address || c.submitter_address || c.creator_address || c.owner_address
-    || anchorerObj?.address || anchorerObj?.wallet_address || c.submitter?.address || c.creator?.address || '';
-  const anchorerName = c.anchorer_username || c.anchorer_name || c.submitted_by_username || c.creator_username
-    || anchorerObj?.username || anchorerObj?.display_name || c.submitter?.username || c.creator?.username || '';
+    || c.anchorer_address || c.submitter_address || c.submitted_by_address || c.creator_address || c.owner_address
+    || anchorerObj?.address || anchorerObj?.wallet_address || anchorerObj?.primary_wallet || '';
+  const anchorerName = c.anchorer_username || c.anchorer_name || c.submitter_username || c.submitted_by_username || c.creator_username
+    || anchorerObj?.username || anchorerObj?.display_name || anchorerObj?.full_name || '';
 
   return {
     id: c.id,
