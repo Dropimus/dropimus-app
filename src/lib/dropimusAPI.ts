@@ -147,8 +147,15 @@ export class DropimusAPI {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        // Surface the backend's actual reason (e.g. "Minimum capital stake is
+        // 5 USDC", "Anchor rate limit…", insufficient allowance) instead of a
+        // bare HTTP code — these are the messages users need while anchoring.
+        const detail = data?.detail || data?.message || `HTTP ${res.status}`;
+        return { success: false, detail };
+      }
+      return data;
     } catch (err) {
       console.error("DropimusAPI: Live anchorCall failed.", err);
       return {
@@ -476,7 +483,14 @@ export async function signUSDCApprovalAndDeposit(
 
     // Canonical contract addresses from /api/config/contracts.
     const cfg = await DropimusAPI.getContractConfig();
-    const spenderAddr = isAnchor ? (cfg?.addresses?.capital || '') : (cfg?.addresses?.registry || '');
+    // The approval spender MUST match what the backend's preflight checks the
+    // allowance against, otherwise the post-approval poll never confirms and the
+    // flow hangs. Anchoring now pulls capital via the TREASURY (preflight returns
+    // treasury_address), not the Capital contract as before — prefer the
+    // preflight's own address, falling back to config, then legacy capital.
+    const spenderAddr = isAnchor
+      ? (pf.treasury_address || pf.capital_address || cfg?.addresses?.treasury || cfg?.addresses?.capital || '')
+      : (pf.registry_address || cfg?.addresses?.registry || '');
     const tokenAddr = cfg?.addresses?.dUSD || pf.mock_usdc_address || '';
 
     if (!spenderAddr || !tokenAddr) {
