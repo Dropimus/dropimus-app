@@ -101,6 +101,7 @@ export interface Claim {
   metric?: string;
   source?: string;
   txHash?: string;
+  onchainCallId?: number | null;
 }
 
 /**

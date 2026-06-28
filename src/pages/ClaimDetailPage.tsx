@@ -14,7 +14,7 @@ import TierBadge from '../components/shared/TierBadge';
 import SentimentOrb from '../components/shared/SentimentOrb';
 import Btn from '../components/shared/Btn';
 import { PROOF_TYPES } from '../data';
-import { signUSDCApprovalAndDeposit, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
+import { submitCallForClaim, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import CountdownTimer from '../components/shared/CountdownTimer';
 import {
   ResponsiveContainer,
@@ -89,6 +89,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
             proven: d.proven !== undefined ? Number(d.proven) : (prev || claimProp).proven,
             faded: d.faded !== undefined ? Number(d.faded) : (prev || claimProp).faded,
             callers: d.callers !== undefined ? Number(d.callers) : (prev || claimProp).callers,
+            onchainCallId: d.onchain_call_id ?? d.onchainCallId ?? (prev || claimProp).onchainCallId ?? null,
           }));
           // Keep polling while the claim is still confirming on-chain.
           if (d.status === 'pending_onchain') timer = setTimeout(load, 8000);
@@ -185,32 +186,43 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
       return;
     }
 
-    const result = await signUSDCApprovalAndDeposit(
-      fromAddr,
-      capitalStake,
-      claim.id,
-      (msg, stage) => {
-        setSigningMessage(msg);
-        setSigningStage(stage);
-      }
-    );
- 
+    // VerdictDirection: PROVEN = 0, FADED = 1 (matches the registry + backend).
+    const direction: 0 | 1 = selectedSide === 'proven' ? 0 : 1;
+
+    // The caller signs the on-chain submitCall (registry pulls their capital).
+    const result = await submitCallForClaim({
+      onchainCallId: claim.onchainCallId,
+      direction,
+      capitalUsd: capitalStake,
+      userAddress: fromAddr,
+      onProgress: (msg, stage) => { setSigningMessage(msg); setSigningStage(stage); },
+    });
+
     if (result.success) {
       setTxHash(result.txHash || '');
-      // Submit call on protocol APIs
-        const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
+      const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
       if (!accessToken) {
-        throw new Error('Authentication session token missing. Please sign in again.');
+        setSigningStage('error');
+        setSigningMessage('Authentication session token missing. Please sign in again.');
+        return;
       }
+      // vote > 0 ⇒ PROVEN per the backend (expected_direction = vote > 0 ? 0 : 1).
       const vote = selectedSide === 'proven' ? 1 : 0;
-      await DropimusAPI.submitCall(claim.id, {
+      const callRes = await DropimusAPI.submitCall(claim.id, {
         vote,
-        honor_stake: honorStake,
         capital_stake: capitalStake.toString(),
         onchain_tx_hash: result.txHash || '',
         proof_type: evidenceList.length > 0 ? 'soft' : 'none',
       }, accessToken);
 
+      if (!callRes?.success) {
+        setSigningStage('error');
+        setSigningMessage(callRes?.detail || 'The backend could not record your position. Your on-chain stake is safe.');
+        return;
+      }
+
+      setSigningStage('complete');
+      setSigningMessage('Position recorded.');
       setTimeout(() => {
         setSigningStage('idle');
         setSigningMessage('');
@@ -219,7 +231,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
         setEvidenceList([]);
         setShowConfirmModal(false);
         onUpdate();
-      }, 2500);
+      }, 2000);
     }
   };
   
@@ -260,32 +272,6 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
     setNewProofDesc('');
     setNewProofUrl('');
     setAddingProof(false);
-  };
-
-  const handleCreateCall = async () => {
-    if (!canSubmit) return;
-    const accessToken = localStorage.getItem('dropimus_jwt_access_token') || '';
-    if (!accessToken) {
-      console.warn('Authentication session token missing for call submission.');
-      return;
-    }
-    const vote = selectedSide === 'proven' ? 1 : 0;
-    try {
-      await DropimusAPI.submitCall(claim.id, {
-        vote,
-        honor_stake: honorStake,
-        capital_stake: capitalStake.toString(),
-        onchain_tx_hash: '',
-        proof_type: evidenceList.length > 0 ? 'soft' : 'none',
-      }, accessToken);
-    } catch (err) {
-      console.error('ClaimDetailPage: submit call failed', err);
-    }
-
-    setMakeCallExpanded(false);
-    setSelectedSide(null);
-    setEvidenceList([]);
-    onUpdate();
   };
 
   const toggleCallAccordion = (idx: number) => {

@@ -291,19 +291,21 @@ export class DropimusAPI {
    */
   static async submitCall(claimId: string | number, payload: {
     vote: number;
-    honor_stake: number;
     capital_stake: string;
     onchain_tx_hash: string;
     proof_type: string;
   }, _accessToken?: string): Promise<any> {
     try {
+      // Note: honor_stake is intentionally NOT sent — the backend rejects it
+      // ("honor impact is computed at settlement"). Honor is never a call input.
       const res = await authFetch(`/api/calls/claim/${claimId}/call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return data || { success: false, detail: `HTTP ${res.status}` };
+      return data;
     } catch (err) {
       console.error("DropimusAPI: Live submitCall failed.", err);
       return { success: false, detail: err instanceof Error ? err.message : "Call submission failed" };
@@ -523,6 +525,102 @@ export async function signUSDCApprovalAndDeposit(
 
     onProgress('Approved. Recording your claim…', 'sign');
     return { success: true, txHash: approveTx };
+  } catch (e: any) {
+    onProgress(e?.message || 'Transaction rejected', 'error');
+    return { success: false, error: e?.message || 'Transaction rejected' };
+  }
+}
+
+// ── Taking a position (call) on a claim ──────────────────────────────────────
+// Unlike anchoring (backend pulls), a caller must sign the on-chain call
+// themselves: approve dUSD to DropimusCallRegistry, then call
+// registry.submitCall(claimId, direction, capitalStaked). The registry pulls the
+// caller's capital via transferFrom and emits CallSubmitted, which the backend
+// verifies from the returned tx hash.
+const ERC20_ABI = [
+  { name: 'allowance', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+] as const;
+
+// claimId here is the on-chain callId; direction 0=PROVEN, 1=FADED.
+const REGISTRY_SUBMIT_ABI = [
+  { name: 'submitCall', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'claimId', type: 'uint256' }, { name: 'direction', type: 'uint8' }, { name: 'capitalStaked', type: 'uint256' }], outputs: [] },
+] as const;
+
+async function _getProvider(): Promise<any> {
+  const { getAppKit } = await import('./walletAndGoogle');
+  const kit = await getAppKit();
+  const provider = kit?.getWalletProvider() || (window as any).ethereum;
+  if (!provider?.request) throw new Error('No active wallet provider found. Please reconnect your wallet.');
+  return provider;
+}
+
+async function _readAllowance(provider: any, token: string, owner: string, spender: string): Promise<bigint> {
+  const { encodeFunctionData } = await import('viem');
+  const data = encodeFunctionData({ abi: ERC20_ABI, functionName: 'allowance', args: [owner as `0x${string}`, spender as `0x${string}`] });
+  const res = await provider.request({ method: 'eth_call', params: [{ to: token, data }, 'latest'] });
+  try { return BigInt(res); } catch { return 0n; }
+}
+
+export async function submitCallForClaim(params: {
+  onchainCallId: number | null | undefined;
+  direction: 0 | 1;
+  capitalUsd: number;
+  userAddress: string;
+  onProgress: (status: string, stage: 'approve' | 'deposit' | 'sign' | 'complete' | 'error') => void;
+}): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  const { onchainCallId, direction, capitalUsd, userAddress, onProgress } = params;
+  try {
+    if (onchainCallId === null || onchainCallId === undefined) {
+      throw new Error('This claim is still confirming on-chain — try again in a moment.');
+    }
+    const cfg = await DropimusAPI.getContractConfig();
+    const registry = cfg?.addresses?.registry;
+    const dusd = cfg?.addresses?.dUSD;
+    if (!registry || !dusd) throw new Error('Could not resolve on-chain contract addresses.');
+
+    const { encodeFunctionData } = await import('viem');
+    const provider = await _getProvider();
+    const from = userAddress.startsWith('0x') ? userAddress : '0x' + userAddress;
+    const capitalUnits = BigInt(Math.round(capitalUsd * 1_000_000));
+
+    // 1. Ensure the registry can pull the caller's capital (allowance read is
+    //    on-chain — the backend preflight checks the Capital contract, not the
+    //    registry, so it can't confirm this approval).
+    const current = await _readAllowance(provider, dusd, from, registry);
+    if (current < capitalUnits) {
+      onProgress('Please approve dUSD in your wallet…', 'approve');
+      const approveData = encodeFunctionData({
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [registry as `0x${string}`, (2n ** 256n - 1n)],
+      });
+      await provider.request({ method: 'eth_sendTransaction', params: [{ from, to: dusd, data: approveData }] });
+      onProgress('Confirming approval on Base…', 'deposit');
+      let ok = false;
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const a = await _readAllowance(provider, dusd, from, registry).catch(() => 0n);
+        if (a >= capitalUnits) { ok = true; break; }
+        onProgress(`Confirming approval on Base… (${(i + 1) * 3}s)`, 'deposit');
+      }
+      if (!ok) return { success: false, error: 'Approval is still confirming on-chain. Please wait a moment and try again.' };
+    }
+
+    // 2. Submit the call — the registry pulls the capital and emits CallSubmitted.
+    onProgress('Please confirm your position in your wallet…', 'deposit');
+    const callData = encodeFunctionData({
+      abi: REGISTRY_SUBMIT_ABI,
+      functionName: 'submitCall',
+      args: [BigInt(onchainCallId), direction, capitalUnits],
+    });
+    const txHash = await provider.request({
+      method: 'eth_sendTransaction',
+      params: [{ from, to: registry.startsWith('0x') ? registry : '0x' + registry, data: callData }],
+    });
+
+    onProgress('Position submitted — recording…', 'sign');
+    return { success: true, txHash };
   } catch (e: any) {
     onProgress(e?.message || 'Transaction rejected', 'error');
     return { success: false, error: e?.message || 'Transaction rejected' };

@@ -110,15 +110,20 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         </div>
       </div>
 
-      {/* 4. Who anchored it */}
+      {/* 4. Who anchored it + how much they locked */}
       {anchoredBy && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
           <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: `linear-gradient(135deg, ${C.gold}, ${C.blueLight})`, flexShrink: 0 }} />
           <span style={{ fontSize: '10px', color: C.faint }}>Anchored by</span>
           <span style={{ fontFamily: claim.anchorerName ? FONTS.body : FONTS.mono, fontSize: '11px', color: C.sub, fontWeight: claim.anchorerName ? 600 : 400 }}>
             {anchoredBy}
           </span>
           {claim.tier && <TierBadge tier={claim.tier} />}
+          {claim.capital > 0 && (
+            <span style={{ fontSize: '10px', color: C.faint }}>
+              · locked <span style={{ color: C.goldBright, fontWeight: 700, fontFamily: FONTS.mono }}>{fmt(claim.capital, true)}</span>
+            </span>
+          )}
         </div>
       )}
 

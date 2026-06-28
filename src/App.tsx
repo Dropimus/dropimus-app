@@ -83,6 +83,7 @@ const mapBackendClaim = (c: any): Claim => {
     metric: c.metric || '',
     source: c.source || '',
     txHash: c.anchor_tx_hash || c.content_hash || c.tx_hash || c.onchain_tx_hash || c.txHash || '',
+    onchainCallId: c.onchain_call_id ?? c.onchainCallId ?? null,
   };
 };
 
@@ -240,12 +241,17 @@ export default function App() {
 
         if (meRes && meRes.success && meRes.data) {
           const uData = meRes.data;
-          setGoogleUser(prev => ({
-            ...prev,
+          // Authoritative identity from /users/me — do NOT fall back to prev
+          // name/email, or a previously-cached account's identity would leak
+          // into the current session (profile showing the wrong user).
+          const nextGoogle: GoogleUser = {
             loggedIn: true,
-            name: uData.full_name || uData.username || prev.name,
-            email: uData.email || prev.email,
-          }));
+            name: uData.full_name || uData.username || (uData.address ? shortAddr(uData.address) : 'Dropimus User'),
+            email: uData.email || '',
+            avatar: uData.avatar || '',
+          };
+          setGoogleUser(nextGoogle);
+          try { localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(nextGoogle)); } catch { /* ignore */ }
 
           setWallet(prev => {
             const updated = {
@@ -262,6 +268,7 @@ export default function App() {
               const tier = hs.title ?? hs.tier ?? ud.account_tier?.name ?? ud.tier ?? ud.tier_name;
               if (tier) updated.tier = tier;
             }
+            try { localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(updated)); } catch { /* ignore */ }
             return updated;
           });
         }
