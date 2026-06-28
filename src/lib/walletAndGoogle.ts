@@ -103,6 +103,14 @@ export interface Claim {
   txHash?: string;
 }
 
+/**
+ * A claim is "live" — open for participants to take positions — once it is
+ * funded and confirmed on-chain (status "active"), or while still using the
+ * legacy "open" status. pending_onchain/resolving/terminal states are not.
+ */
+export const isClaimLive = (status?: string): boolean =>
+  status === 'active' || status === 'open';
+
 export interface GoogleUser {
   loggedIn: boolean;
   name: string;

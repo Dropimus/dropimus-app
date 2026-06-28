@@ -123,7 +123,7 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
   );
 
   // Calculate sum counts for the ledger summary strip
-  const openClaimsCount = claims.filter(c => c.status === 'open' || c.status === 'dead_zone').length;
+  const openClaimsCount = claims.filter(c => c.status === 'open' || c.status === 'active').length;
   const totalHonorStaked = claims.reduce((acc, c) => acc + c.honorStaked, 0);
   const totalUSDCLocked = claims.reduce((acc, c) => acc + c.capital, 0);
 

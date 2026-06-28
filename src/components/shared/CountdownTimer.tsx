@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 import { C, FONTS } from '../../tokens';
+import { isClaimLive } from '../../lib/walletAndGoogle';
 
 interface CountdownTimerProps {
   daysLeft: number;
@@ -20,7 +21,7 @@ export function CountdownTimer({ daysLeft, status }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
 
   useEffect(() => {
-    if (status !== 'open' || daysLeft <= 0) {
+    if (!isClaimLive(status) || daysLeft <= 0) {
       return;
     }
 
@@ -42,7 +43,7 @@ export function CountdownTimer({ daysLeft, status }: CountdownTimerProps) {
     return () => clearInterval(interval);
   }, [targetTime, status, daysLeft]);
 
-  if (status !== 'open') {
+  if (!isClaimLive(status)) {
     return (
       <div style={{
         background: 'rgba(255, 255, 255, 0.02)',

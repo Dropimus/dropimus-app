@@ -11,7 +11,7 @@ import StatusPill from './StatusPill';
 import TierBadge from './TierBadge';
 import SentimentOrb from './SentimentOrb';
 import Btn from './Btn';
-import { Claim } from '../../lib/walletAndGoogle';
+import { Claim, isClaimLive } from '../../lib/walletAndGoogle';
 
 interface ClaimCardProps {
   claim: Claim;
@@ -90,7 +90,7 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
         {hasPositions ? (
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <SentimentOrb proven={claim.proven} faded={claim.faded} size={72} animate={claim.status === 'open'} />
+            <SentimentOrb proven={claim.proven} faded={claim.faded} size={72} animate={isClaimLive(claim.status)} />
             <div style={{ fontSize: '10px', fontWeight: 700, marginTop: '4px', color: believePct >= 50 ? C.blueLight : C.fadedBright }}>
               {believePct >= 50 ? `${believePct}% Believe` : `${100 - believePct}% Doubt`}
             </div>
@@ -104,7 +104,7 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <Stat icon={<Coins size={12} />} label="Staked" value={fmt(claim.capital, true)} color={C.goldBright} />
           <Stat icon={<Users size={12} />} label="Positions" value={String(claim.callers || 0)} color={C.text} />
-          {claim.daysLeft > 0 && claim.status === 'open' && (
+          {claim.daysLeft > 0 && isClaimLive(claim.status) && (
             <Stat icon={<Clock size={12} />} label="Resolves in" value={`${claim.daysLeft}d`} color={C.blueLight} />
           )}
         </div>
@@ -124,7 +124,7 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
 
       {/* 5. Actions */}
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '8px' }}>
-        {claim.status === 'open' ? (
+        {isClaimLive(claim.status) ? (
           <>
             <Btn
               variant="primary"

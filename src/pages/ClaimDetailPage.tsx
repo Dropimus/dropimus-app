@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, PenTool, Zap } from 'lucide-react';
 import { C, FONTS } from '../tokens';
-import { Claim, Call, Proof } from '../lib/walletAndGoogle';
+import { Claim, Call, Proof, isClaimLive } from '../lib/walletAndGoogle';
 import CatPill from '../components/shared/CatPill';
 import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
@@ -795,7 +795,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
         </div>
 
         {/* Large Orb — single source of sentiment */}
-        <SentimentOrb proven={claim.proven} faded={claim.faded} size={100} animate={claim.status === 'open'} />
+        <SentimentOrb proven={claim.proven} faded={claim.faded} size={100} animate={isClaimLive(claim.status)} />
 
         <div style={{ width: '100%', height: '1px', background: C.hairline }} />
 
@@ -831,7 +831,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
       </div>
 
       {/* 4. Make a call accordion block */}
-      {claim.status === 'open' && (
+      {isClaimLive(claim.status) && (
         <div style={{ marginBottom: '24px' }}>
           {!walletConnected ? (
             <div
