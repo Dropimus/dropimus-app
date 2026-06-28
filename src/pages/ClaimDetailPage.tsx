@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, PenTool, Zap } from 'lucide-react';
 import { C, FONTS } from '../tokens';
-import { Claim, Call, Proof, isClaimLive } from '../lib/walletAndGoogle';
+import { Claim, Call, Proof, isClaimLive, getAppKit } from '../lib/walletAndGoogle';
 import CatPill from '../components/shared/CatPill';
 import StatusPill from '../components/shared/StatusPill';
 import TierBadge from '../components/shared/TierBadge';
@@ -164,14 +164,29 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
   const [txHash, setTxHash] = useState<string>('');
  
   const handleTriggerTransactionSigning = async () => {
-    if (!walletAddress) {
+    setSigningStage('approve');
+    setSigningMessage('Opening your wallet…');
+
+    // Resolve the connected wallet address — fall back to the live provider
+    // account if the prop hasn't hydrated, so a connected wallet is never
+    // blocked by a phantom "connect your wallet" error.
+    let fromAddr = walletAddress;
+    if (!fromAddr) {
+      try {
+        const kit = await getAppKit();
+        const provider = kit?.getWalletProvider() || (window as any).ethereum;
+        const accts = await provider?.request({ method: 'eth_accounts' });
+        fromAddr = (accts && accts[0]) || '';
+      } catch { /* ignore */ }
+    }
+    if (!fromAddr) {
       setSigningStage('error');
-      setSigningMessage('Connect your wallet to sign this transaction.');
+      setSigningMessage('No connected wallet address found. Reconnect your wallet and try again.');
       return;
     }
-    setSigningStage('approve');
+
     const result = await signUSDCApprovalAndDeposit(
-      walletAddress,
+      fromAddr,
       capitalStake,
       claim.id,
       (msg, stage) => {
