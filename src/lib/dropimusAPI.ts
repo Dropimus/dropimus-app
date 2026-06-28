@@ -420,8 +420,20 @@ export class DropimusAPI {
 }
 
 /**
- * Performs a real on-chain USDC approval and deposit transaction using the connected Web3 provider.
- * Connects with the live API preflight endpoint to look up testnet contract addresses dynamically.
+ * Grant the dUSD allowance the protocol needs, then let the backend pull the
+ * capital via transferFrom (depositCapital / the registry).
+ *
+ * IMPORTANT — the approval spender differs by action:
+ *   - Anchoring a claim       → approve DropimusCapital   (addresses.capital)
+ *   - Taking a position (call)→ approve DropimusCallRegistry (addresses.registry)
+ *
+ * The contracts pull the funds themselves (depositCapital does transferFrom), so
+ * the frontend ONLY approves — it does NOT send a deposit transaction. The
+ * earlier code approved the treasury and sent a deposit tx to it, which is why
+ * the on-chain allowance to Capital stayed 0 and anchoring never funded.
+ *
+ * A generous (max-uint256) allowance is granted so a single approval covers this
+ * and future stakes and can never be marginally short of `required`.
  */
 export async function signUSDCApprovalAndDeposit(
   userAddress: string,
@@ -431,21 +443,19 @@ export async function signUSDCApprovalAndDeposit(
   prefetchedPreflight?: any,
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
   try {
-    // Contract addresses come exclusively from the backend preflight — no
-    // hardcoded fallbacks, so we never sign a transaction against a fake address.
-    let treasuryAddr = '';
-    let mockUsdcAddr = '';
-    // Convert to 6-decimal USDC micro-units safely (BigInt() throws on fractional numbers).
-    let reqUnits = BigInt(Math.round(usdcAmount * 1_000_000));
-    let skipApproval = false;
+    const isAnchor = !claimId || claimId === 0 || claimId === '0';
 
     // Reuse a preflight the caller already fetched (so the wallet prompt opens
-    // immediately) — otherwise fetch it now.
+    // immediately) — otherwise fetch the right readiness endpoint.
+    const allowancePath = isAnchor
+      ? `/api/claims/preflight?amount=${usdcAmount}`
+      : `/api/calls/preflight/${claimId}`;
+
     let pf = prefetchedPreflight;
     if (!pf) {
       onProgress('Verifying on-chain requirements…', 'approve');
       try {
-        const res = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
+        const res = await authFetch(allowancePath);
         if (!res.ok) throw new Error(`Preflight query failed (HTTP ${res.status})`);
         const json = await res.json();
         if (!json || json.success === false || !json.data) throw new Error(json?.detail || 'Invalid preflight response.');
@@ -454,101 +464,67 @@ export async function signUSDCApprovalAndDeposit(
         throw new Error(`Failed to fetch preflight during signing: ${e?.message || e}`);
       }
     }
-    if (pf.required_units) reqUnits = BigInt(pf.required_units);
-    if (pf.has_allowance) skipApproval = true;
+    const alreadyApproved = !!(pf.has_allowance ?? pf.ready);
 
-    // Contract addresses: prefer the canonical /api/config/contracts endpoint
-    // (dUSD = the token to approve, treasury = the spender/deposit target),
-    // falling back to whatever preflight returned.
+    // Canonical contract addresses from /api/config/contracts.
     const cfg = await DropimusAPI.getContractConfig();
-    treasuryAddr = cfg?.addresses?.treasury || pf.treasury_address || '';
-    mockUsdcAddr = cfg?.addresses?.dUSD || pf.mock_usdc_address || '';
+    const spenderAddr = isAnchor ? (cfg?.addresses?.capital || '') : (cfg?.addresses?.registry || '');
+    const tokenAddr = cfg?.addresses?.dUSD || pf.mock_usdc_address || '';
 
-    if (!treasuryAddr || !mockUsdcAddr) {
+    if (!spenderAddr || !tokenAddr) {
       throw new Error('Could not resolve on-chain contract addresses. Please try again shortly.');
+    }
+
+    if (alreadyApproved) {
+      onProgress('Spend already approved — submitting…', 'approve');
+      return { success: true, txHash: '' };
     }
 
     const { getAppKit } = await import('./walletAndGoogle');
     const kit = await getAppKit();
     const provider = kit?.getWalletProvider() || (window as any).ethereum;
     if (!provider || !provider.request) {
-      throw new Error("No active EIP-1193 Web3 provider found. Please connect your wallet.");
+      throw new Error('No active wallet provider found. Please reconnect your wallet.');
     }
 
     const cleanUserAddr = userAddress.startsWith('0x') ? userAddress : ('0x' + userAddress);
-    const cleanMockUsdc = mockUsdcAddr.startsWith('0x') ? mockUsdcAddr : ('0x' + mockUsdcAddr);
-    const cleanTreasury = treasuryAddr.startsWith('0x') ? treasuryAddr : ('0x' + treasuryAddr);
+    const cleanToken = tokenAddr.startsWith('0x') ? tokenAddr : ('0x' + tokenAddr);
+    const cleanSpender = spenderAddr.startsWith('0x') ? spenderAddr : ('0x' + spenderAddr);
 
-    if (skipApproval) {
-      onProgress("Pre-approved spend limit verified. Proceeding directly to collateral deposit...", "approve");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } else {
-      onProgress(`Approve spend limit: Requesting permission to spend $${usdcAmount} USDC on behalf of Dropimus Escrow contract...`, 'approve');
-      
-      const pSpender = cleanTreasury.slice(2).toLowerCase().padStart(64, '0');
-      const pAmount = reqUnits.toString(16).padStart(64, '0');
-      const approveCalldata = '0x095ea7b3' + pSpender + pAmount;
+    // approve(spender, max uint256)
+    const pSpender = cleanSpender.slice(2).toLowerCase().padStart(64, '0');
+    const MAX_UINT256 = 'f'.repeat(64);
+    const approveCalldata = '0x095ea7b3' + pSpender + MAX_UINT256;
 
-      onProgress("Please approve the spend limit in your wallet…", "approve");
-      const approveTx = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: cleanUserAddr,
-          to: cleanMockUsdc,
-          data: approveCalldata
-        }]
-      });
-
-      // Poll the backend preflight until the allowance is actually confirmed
-      // on-chain — a fixed wait races the block time and makes the deposit
-      // (transferFrom) revert, which previously looked like "approve again".
-      onProgress(`Approval submitted (${approveTx.slice(0, 10)}…). Waiting for on-chain confirmation…`, 'deposit');
-      let allowanceConfirmed = false;
-      for (let i = 0; i < 15; i++) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        try {
-          const pf = await authFetch(`/api/claims/preflight?amount=${usdcAmount}`);
-          if (pf.ok) {
-            const pj = await pf.json();
-            if (pj?.data?.has_allowance) { allowanceConfirmed = true; break; }
-          }
-        } catch { /* keep polling */ }
-        onProgress(`Confirming approval on Base… (${(i + 1) * 3}s)`, 'deposit');
-      }
-      if (!allowanceConfirmed) {
-        return { success: false, error: 'Approval is still confirming on-chain. Please wait a moment and try again.' };
-      }
-    }
-
-    onProgress(`Now signing stake collateral deposit of $${usdcAmount} USDC to Dropimus smart contract...`, 'deposit');
-
-    let depositCalldata = '';
-    if (claimId && claimId !== 0 && claimId !== '0') {
-      const pAmt = reqUnits.toString(16).padStart(64, '0');
-      const pId = BigInt(claimId).toString(16).padStart(64, '0');
-      depositCalldata = '0xe2bbb158' + pAmt + pId;
-    } else {
-      const pAmt = reqUnits.toString(16).padStart(64, '0');
-      depositCalldata = '0xb6b55f25' + pAmt;
-    }
-
-    onProgress("Please sign the collateral deposit transaction in your wallet...", "deposit");
-    const depositTx = await provider.request({
+    onProgress('Please approve dUSD in your wallet…', 'approve');
+    const approveTx = await provider.request({
       method: 'eth_sendTransaction',
-      params: [{
-        from: cleanUserAddr,
-        to: cleanTreasury,
-        data: depositCalldata
-      }]
+      params: [{ from: cleanUserAddr, to: cleanToken, data: approveCalldata }],
     });
 
-    onProgress(`Deposit settled on-chain in TX: ${depositTx.slice(0, 10)}... Finalizing cryptographic registration...`, 'sign');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Poll the backend until the allowance is actually confirmed on-chain — a
+    // fixed wait races the block time. The backend then pulls the capital.
+    onProgress(`Approval submitted (${approveTx.slice(0, 10)}…). Confirming on Base…`, 'deposit');
+    let allowanceConfirmed = false;
+    for (let i = 0; i < 15; i++) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      try {
+        const r = await authFetch(allowancePath);
+        if (r.ok) {
+          const rj = await r.json();
+          if (rj?.data?.has_allowance ?? rj?.data?.ready) { allowanceConfirmed = true; break; }
+        }
+      } catch { /* keep polling */ }
+      onProgress(`Confirming approval on Base… (${(i + 1) * 3}s)`, 'deposit');
+    }
+    if (!allowanceConfirmed) {
+      return { success: false, error: 'Approval is still confirming on-chain. Please wait a moment and try again.' };
+    }
 
-    onProgress(`Broadcast success! Verified on Base network. TX Hash: ${depositTx}`, 'complete');
-    return { success: true, txHash: depositTx };
+    onProgress('Approved. Recording your claim…', 'sign');
+    return { success: true, txHash: approveTx };
   } catch (e: any) {
-    onProgress(`Transaction chain failed: ${e.message || 'Transaction rejected'}`, 'error');
-    return { success: false, error: e.message || 'Transaction rejected' };
+    onProgress(e?.message || 'Transaction rejected', 'error');
+    return { success: false, error: e?.message || 'Transaction rejected' };
   }
 }
