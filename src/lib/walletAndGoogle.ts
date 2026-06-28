@@ -97,6 +97,9 @@ export interface Claim {
   daysLeft: number;
   description: string;
   calls: Call[];
+  // Sampled positions from the market endpoint (direction + capital, no time).
+  // Used to draw the believe-vs-doubt sentiment lines.
+  sampledCalls?: { side: 'proven' | 'faded'; stake: number }[];
   resolutionDate?: string;
   metric?: string;
   source?: string;
