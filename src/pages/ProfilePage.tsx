@@ -246,6 +246,11 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
                       ? `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`
                       : 'Your Profile')}
               </h2>
+              {googleUser.loggedIn && googleUser.email && (
+                <div style={{ fontSize: '11px', color: C.sub, fontFamily: FONTS.mono, marginBottom: '6px' }}>
+                  {googleUser.email}
+                </div>
+              )}
               {wallet.address && (
                 <span
                   className="bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/5 font-mono text-[11px] text-zinc-400 select-all tracking-tight inline-block"
@@ -258,6 +263,16 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
 
             {/* Concordance Honor Ring */}
             <HonorRing honor={wallet.balanceHonor} tier={wallet.tier} size={100} />
+
+            {/* On-chain credentials (Capital / Honor / Tier) — moved here from the
+                old top-bar dropdown so all wallet detail lives on the profile. */}
+            {wallet.connected && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', width: '100%' }}>
+                <Credential label="Capital" value={`$${wallet.balanceUSDC}`} color={C.goldBright} mono />
+                <Credential label="Honor" value={String(wallet.balanceHonor)} color="#10B981" mono />
+                <Credential label="Tier" value={wallet.tier || '—'} color={C.blueLight} />
+              </div>
+            )}
 
             <div style={{ width: '100%', height: '1px', background: C.hairline }} />
 
@@ -675,4 +690,14 @@ export function ProfilePage({ wallet, googleUser, claims, onSelectClaim, onSignO
     </div>
   );
 }
+
+function Credential({ label, value, color, mono }: { label: string; value: string; color: string; mono?: boolean }) {
+  return (
+    <div style={{ background: C.elevated, border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+      <span style={{ fontSize: '8px', color: C.sub, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+      <span style={{ fontFamily: mono ? FONTS.mono : FONTS.display, color, fontSize: '13px', fontWeight: 800, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+    </div>
+  );
+}
+
 export default ProfilePage;
