@@ -1524,6 +1524,15 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
 
       {createPortal(
         <div
+          onClick={() => {
+            // Dismiss on backdrop click — but never mid-transaction, when a
+            // wallet signature is pending.
+            if (['idle', 'error', 'complete'].includes(signingStage)) {
+              setShowConfirmModal(false);
+              setSigningStage('idle');
+              setSigningMessage('');
+            }
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -1543,6 +1552,7 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
           }}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               background: C.card,
               border: `1px solid ${selectedSide === 'proven' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(217, 48, 80, 0.3)'}`,
@@ -1809,6 +1819,58 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
                     Confirm Position
                   </button>
                 </div>
+              ) : signingStage === 'error' ? (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => { setShowConfirmModal(false); setSigningStage('idle'); setSigningMessage(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '12px',
+                      border: `1px solid ${C.border}`,
+                      background: 'transparent',
+                      color: C.text,
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => { setSigningStage('idle'); setSigningMessage(''); }}
+                    style={{
+                      flex: 1.3,
+                      padding: '12px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: C.blue,
+                      color: '#000000',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : signingStage === 'complete' ? (
+                <button
+                  onClick={() => { setShowConfirmModal(false); setSigningStage('idle'); setSigningMessage(''); }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#10B981',
+                    color: '#000000',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Done
+                </button>
               ) : (
                 <div style={{ textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', fontSize: '10px', fontWeight: 700, color: C.sub }}>
                   Transaction securing via Smart Contract...
