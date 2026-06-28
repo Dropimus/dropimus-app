@@ -25,7 +25,7 @@ import {
   X
 } from 'lucide-react';
 import { C, FONTS } from '../tokens';
-import { getAppKit, GoogleUser } from '../lib/walletAndGoogle';
+import { getAppKit, appKitInitError, isInIframe, GoogleUser } from '../lib/walletAndGoogle';
 import { DropimusAPI } from '../lib/dropimusAPI';
 import { motion, AnimatePresence } from 'motion/react';
 import { TermsPage } from './TermsPage';
@@ -268,7 +268,14 @@ showToast("Wallet verified — welcome to Dropimus!", "success");
         console.warn("AppKit.open failed: ", e);
       }
     } else {
-      const errMsg = "Web3 wallet connection is currently unavailable in this sandbox frame. Please use Google authentication or open this app in a new tab.";
+      // getAppKit() returned null ⇒ init failed. Show the real reason, and only
+      // blame the iframe when we're actually embedded in one.
+      const framed = isInIframe();
+      const errMsg = framed
+        ? "Wallet connect can't open inside this embedded frame. Open the app in a new tab, or use Google sign-in."
+        : appKitInitError
+          ? `Wallet connection failed to initialize: ${appKitInitError}. Please retry, or use Google sign-in.`
+          : "Wallet connection is temporarily unavailable. Please retry, or use Google sign-in.";
       setWalletAuthError(errMsg);
       showToast(errMsg, "error");
     }
