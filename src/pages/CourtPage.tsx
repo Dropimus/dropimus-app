@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 import { Search, Folder, Flame, Activity, Shield, Rocket, AlertTriangle, ClipboardList, LayoutGrid } from 'lucide-react';
 import { C, FONTS } from '../tokens';
 import ClaimCard from '../components/shared/ClaimCard';
+import { Select } from '../components/shared/Select';
 import { Claim } from '../lib/walletAndGoogle';
 import { IconParachute } from '../components/icons';
 
@@ -295,58 +296,34 @@ export function CourtPage({ claims, onSelectClaim, onMakeCall }: CourtPageProps)
         {/* Filters Group (Search, Status, Order) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {/* Status Select */}
-          <div style={{ position: 'relative' }}>
-            <select
+          <div style={{ minWidth: '128px' }}>
+            <Select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                background: C.deep,
-                border: `1px solid ${C.border}`,
-                borderRadius: '6px',
-                color: C.text,
-                fontSize: '11px',
-                fontWeight: 600,
-                padding: '3px 18px 3px 8px',
-                cursor: 'pointer',
-                fontFamily: FONTS.body,
-                outline: 'none',
-              }}
-            >
-              <option value="all" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>All States</option>
-              <option value="open" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Active</option>
-              <option value="resolved" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Proven</option>
-              <option value="faded" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Faded</option>
-            </select>
-            <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '7px', opacity: 0.5, color: C.text }}>▼</div>
+              onChange={(v) => setStatusFilter(v as StatusFilter)}
+              options={[
+                { value: 'all', label: 'All States' },
+                { value: 'open', label: 'Active' },
+                { value: 'resolved', label: 'Proven' },
+                { value: 'faded', label: 'Faded' },
+              ]}
+              ariaLabel="Filter by state"
+              style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 600 }}
+            />
           </div>
 
           {/* Sort Select */}
-          <div style={{ position: 'relative' }}>
-            <select
+          <div style={{ minWidth: '128px' }}>
+            <Select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortBy)}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                background: C.deep,
-                border: `1px solid ${C.border}`,
-                borderRadius: '6px',
-                color: C.text,
-                fontSize: '11px',
-                fontWeight: 600,
-                padding: '3px 18px 3px 8px',
-                cursor: 'pointer',
-                fontFamily: FONTS.body,
-                outline: 'none',
-              }}
-            >
-              <option value="newest" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Newest</option>
-              <option value="stakes" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>High Stakes</option>
-              <option value="active" style={{ background: 'var(--color-canvas)', color: 'var(--color-text)' }}>Most Active</option>
-            </select>
-            <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '7px', opacity: 0.5, color: C.text }}>▼</div>
+              onChange={(v) => setSortBy(v as SortBy)}
+              options={[
+                { value: 'newest', label: 'Newest' },
+                { value: 'stakes', label: 'High Stakes' },
+                { value: 'active', label: 'Most Active' },
+              ]}
+              ariaLabel="Sort"
+              style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 600 }}
+            />
           </div>
 
           <span style={{ color: C.border, margin: '0 2px' }}>|</span>

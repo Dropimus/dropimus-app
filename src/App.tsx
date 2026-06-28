@@ -56,11 +56,19 @@ const mapBackendClaim = (c: any): Claim => {
   }
 
   const callers = num(m.total_calls ?? m.participant_count ?? m.callers ?? c.callers) ?? 0;
-  const capital = num(c.capital_staked ?? c.capital_stake ?? c.capital ?? m.total_capital) ?? 0;
+  const capital = num(
+    c.capital_staked ?? c.capital_stake ?? c.capital ?? c.anchor_capital ?? c.capital_amount
+    ?? m.total_capital ?? m.capital_staked,
+  ) ?? 0;
 
-  const anchorerAddr = c.anchorer_address || c.anchorer || c.submitter_address || '';
-  const anchorerName = c.anchorer_username || c.anchorer_name || c.submitted_by_username
-    || c.anchorer?.username || c.submitter?.username || '';
+  // Anchorer attribution can arrive as a flat field or nested user object, under
+  // several names depending on the endpoint — accept any of them.
+  const anchorerObj = c.anchorer && typeof c.anchorer === 'object' ? c.anchorer : null;
+  const anchorerAddr = (typeof c.anchorer === 'string' ? c.anchorer : '')
+    || c.anchorer_address || c.submitter_address || c.creator_address || c.owner_address
+    || anchorerObj?.address || anchorerObj?.wallet_address || c.submitter?.address || c.creator?.address || '';
+  const anchorerName = c.anchorer_username || c.anchorer_name || c.submitted_by_username || c.creator_username
+    || anchorerObj?.username || anchorerObj?.display_name || c.submitter?.username || c.creator?.username || '';
 
   return {
     id: c.id,

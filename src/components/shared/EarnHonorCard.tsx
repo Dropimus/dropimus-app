@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Zap, RefreshCw, CheckCircle2, Sparkles, Info } from 'lucide-react';
 import { C, FONTS } from '../../tokens';
 import { authFetch } from '../../lib/authClient';
+import { Select } from './Select';
 
 // Only these two categories are structurally verifiable from the stored Alchemy
 // transfer data (NFT mint = transfer from the zero address; airdrop/incoming =
@@ -191,19 +192,20 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
         <>
           <p style={{ fontSize: '12px', color: C.sub, lineHeight: 1.5, margin: '10px 0' }}>
             <Info size={12} style={{ verticalAlign: '-1px', marginRight: '4px', color: C.faint }} />
-            Tag your <b style={{ color: C.text }}>NFT mints</b> and <b style={{ color: C.text }}>incoming airdrops/tokens</b> in your wallet history — each one we can verify on-chain earns <b style={{ color: C.goldBright }}>+1 Honor</b> (up to {progress?.lifetime_cap ?? 20}).
+            Tag your <b style={{ color: C.text }}>NFT mints</b> and <b style={{ color: C.text }}>incoming airdrops/tokens</b> in your wallet history — each one we can verify on-chain earns <b style={{ color: C.goldBright }}>Honor</b> (up to {progress?.lifetime_cap ?? 20}).
             {' '}{capReached ? 'You’ve hit the labeling cap.' : `${remainingToday} of ${progress?.daily_limit ?? 5} left today.`}
           </p>
 
           {/* Wallet selector (only if more than one) */}
           {wallets.length > 1 && (
-            <select
-              value={activeWalletId ?? ''}
-              onChange={(e) => { const id = Number(e.target.value); setActiveWalletId(id); loadTxs(id); }}
-              style={selectStyle}
-            >
-              {wallets.map((w) => <option key={w.id} value={w.id}>{w.name || shortHash(w.address)} · {w.chain}</option>)}
-            </select>
+            <div style={{ marginBottom: '8px' }}>
+              <Select
+                value={activeWalletId != null ? String(activeWalletId) : ''}
+                onChange={(v) => { const id = Number(v); setActiveWalletId(id); loadTxs(id); }}
+                options={wallets.map((w) => ({ value: String(w.id), label: `${w.name || shortHash(w.address)} · ${w.chain}` }))}
+                ariaLabel="Select wallet"
+              />
+            </div>
           )}
 
           {/* Transactions */}
@@ -236,20 +238,23 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
                     </div>
                     {earned ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: C.goldBright, fontWeight: 700 }}>
-                        <CheckCircle2 size={12} /> +1 Honor
+                        <CheckCircle2 size={12} /> Honor earned
                       </span>
                     ) : busyHash === hash ? (
                       <RefreshCw className="animate-spin" size={13} style={{ color: C.sub }} />
                     ) : (
-                      <select
-                        value={t.label || ''}
-                        onChange={(e) => handleLabel(hash, e.target.value)}
-                        disabled={capReached || remainingToday <= 0}
-                        style={{ ...selectStyle, width: 'auto', minWidth: '130px', margin: 0, padding: '6px 8px', fontSize: '12px' }}
-                      >
-                        <option value="">Label as…</option>
-                        {LABEL_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </select>
+                      <div style={{ flexShrink: 0 }}>
+                        <Select
+                          value={t.label || ''}
+                          onChange={(v) => handleLabel(hash, v)}
+                          options={LABEL_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+                          placeholder="Label as…"
+                          disabled={capReached || remainingToday <= 0}
+                          fullWidth={false}
+                          ariaLabel="Label transaction"
+                          style={{ minWidth: '150px', padding: '6px 8px', fontSize: '12px' }}
+                        />
+                      </div>
                     )}
                   </div>
                 );
@@ -273,20 +278,6 @@ const cardStyle: React.CSSProperties = {
   borderRadius: '16px',
   padding: '16px',
   marginBottom: '16px',
-};
-
-const selectStyle: React.CSSProperties = {
-  width: '100%',
-  background: C.elevated,
-  border: `1px solid ${C.border}`,
-  borderRadius: '8px',
-  padding: '9px 10px',
-  color: C.text,
-  fontSize: '13px',
-  fontFamily: FONTS.body,
-  outline: 'none',
-  marginBottom: '8px',
-  cursor: 'pointer',
 };
 
 const primaryBtn: React.CSSProperties = {
