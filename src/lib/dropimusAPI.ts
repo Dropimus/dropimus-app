@@ -563,11 +563,26 @@ async function _getProvider(): Promise<any> {
   return provider;
 }
 
-async function _readAllowance(provider: any, token: string, owner: string, spender: string): Promise<bigint> {
-  const { encodeFunctionData } = await import('viem');
-  const data = encodeFunctionData({ abi: ERC20_ABI, functionName: 'allowance', args: [owner as `0x${string}`, spender as `0x${string}`] });
-  const res = await provider.request({ method: 'eth_call', params: [{ to: token, data }, 'latest'] });
-  try { return BigInt(res); } catch { return 0n; }
+// Read the allowance over a dedicated public RPC (from /api/config/contracts'
+// chain.rpc_url) rather than the wallet provider — some wallets (WalletConnect/
+// Reown) never answer eth_call, which would hang the whole flow. Times out so it
+// can never block: on failure we just treat the allowance as 0 (re-approve).
+async function _readAllowance(rpcUrl: string, token: string, owner: string, spender: string): Promise<bigint> {
+  try {
+    const { createPublicClient, http } = await import('viem');
+    const client: any = createPublicClient({ transport: http(rpcUrl) });
+    const read = client.readContract({
+      address: token as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [owner as `0x${string}`, spender as `0x${string}`],
+    }) as Promise<bigint>;
+    const timeout = new Promise<bigint>((_, rej) => setTimeout(() => rej(new Error('rpc timeout')), 8000));
+    const res = await Promise.race([read, timeout]);
+    return BigInt(res as any);
+  } catch {
+    return 0n;
+  }
 }
 
 export async function submitCallForClaim(params: {
@@ -585,6 +600,7 @@ export async function submitCallForClaim(params: {
     const cfg = await DropimusAPI.getContractConfig();
     const registry = cfg?.addresses?.registry;
     const dusd = cfg?.addresses?.dUSD;
+    const rpcUrl = cfg?.chain?.rpc_url || 'https://sepolia.base.org';
     if (!registry || !dusd) throw new Error('Could not resolve on-chain contract addresses.');
 
     const { encodeFunctionData } = await import('viem');
@@ -592,10 +608,11 @@ export async function submitCallForClaim(params: {
     const from = userAddress.startsWith('0x') ? userAddress : '0x' + userAddress;
     const capitalUnits = BigInt(Math.round(capitalUsd * 1_000_000));
 
-    // 1. Ensure the registry can pull the caller's capital (allowance read is
-    //    on-chain — the backend preflight checks the Capital contract, not the
-    //    registry, so it can't confirm this approval).
-    const current = await _readAllowance(provider, dusd, from, registry);
+    // 1. Ensure the registry can pull the caller's capital. The allowance is read
+    //    over a public RPC (the backend preflight checks the Capital contract,
+    //    not the registry, so it can't confirm this approval).
+    onProgress('Checking your dUSD allowance…', 'approve');
+    const current = await _readAllowance(rpcUrl, dusd, from, registry);
     if (current < capitalUnits) {
       onProgress('Please approve dUSD in your wallet…', 'approve');
       const approveData = encodeFunctionData({
@@ -608,7 +625,7 @@ export async function submitCallForClaim(params: {
       let ok = false;
       for (let i = 0; i < 15; i++) {
         await new Promise(r => setTimeout(r, 3000));
-        const a = await _readAllowance(provider, dusd, from, registry).catch(() => 0n);
+        const a = await _readAllowance(rpcUrl, dusd, from, registry).catch(() => 0n);
         if (a >= capitalUnits) { ok = true; break; }
         onProgress(`Confirming approval on Base… (${(i + 1) * 3}s)`, 'deposit');
       }
