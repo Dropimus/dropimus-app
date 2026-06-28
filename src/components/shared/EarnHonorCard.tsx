@@ -8,15 +8,13 @@ import { Zap, RefreshCw, CheckCircle2, Sparkles, Info } from 'lucide-react';
 import { C, FONTS } from '../../tokens';
 import { authFetch } from '../../lib/authClient';
 
-// Label categories the backend can verify (method-selector matched). Friendly
-// names map to the exact keys the API expects.
+// Only these two categories are structurally verifiable from the stored Alchemy
+// transfer data (NFT mint = transfer from the zero address; airdrop/incoming =
+// incoming token transfer). The other categories can't be verified yet, so we
+// don't offer them here — they'd just earn nothing and confuse new users.
 const LABEL_OPTIONS: { id: string; label: string }[] = [
-  { id: 'airdrop_claim', label: 'Airdrop claim' },
-  { id: 'dex_swap', label: 'Token swap' },
   { id: 'nft_mint', label: 'NFT mint' },
-  { id: 'bridge_deposit', label: 'Bridge deposit' },
-  { id: 'liquidity_provision', label: 'Liquidity provided' },
-  { id: 'stake', label: 'Staking' },
+  { id: 'airdrop_claim', label: 'Airdrop / incoming tokens' },
 ];
 
 interface Progress {
@@ -64,7 +62,8 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
       if (res.ok) {
         const j = await res.json().catch(() => null);
         const d = j?.data;
-        const list = Array.isArray(d) ? d : (d?.transactions || d?.items || d?.results || []);
+        // Contract: api_response wraps { transactions: [...] } under data.
+        const list = d?.transactions || (Array.isArray(d) ? d : []);
         setTxs(Array.isArray(list) ? list : []);
       } else {
         setTxs([]);
@@ -185,7 +184,7 @@ export function EarnHonorCard({ onHonorEarned }: { onHonorEarned?: () => void })
         <>
           <p style={{ fontSize: '12px', color: C.sub, lineHeight: 1.5, margin: '10px 0' }}>
             <Info size={12} style={{ verticalAlign: '-1px', marginRight: '4px', color: C.faint }} />
-            Label your past on-chain transactions. Each one we can verify earns <b style={{ color: C.goldBright }}>+1 Honor</b> (up to {progress?.lifetime_cap ?? 20}).
+            Tag your <b style={{ color: C.text }}>NFT mints</b> and <b style={{ color: C.text }}>incoming airdrops/tokens</b> in your wallet history — each one we can verify on-chain earns <b style={{ color: C.goldBright }}>+1 Honor</b> (up to {progress?.lifetime_cap ?? 20}).
             {' '}{capReached ? 'You’ve hit the labeling cap.' : `${remainingToday} of ${progress?.daily_limit ?? 5} left today.`}
           </p>
 
