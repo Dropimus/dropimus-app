@@ -9,7 +9,7 @@ import { C, FONTS } from '../../tokens';
 import CatPill from './CatPill';
 import StatusPill from './StatusPill';
 import TierBadge from './TierBadge';
-import ConvictionBar from './ConvictionBar';
+import ConvictionGauge from './ConvictionGauge';
 import Avatar from './Avatar';
 import Btn from './Btn';
 import { Claim, isClaimLive } from '../../lib/walletAndGoogle';
@@ -86,9 +86,9 @@ export function ClaimCard({ claim, onSelect, onMakeCallClick }: ClaimCardProps) 
         {claim.title}
       </h3>
 
-      {/* 3. Credibility market: conviction bar (single source of sentiment) */}
+      {/* 3. Credibility market: conviction gauge (single source of sentiment) */}
       <div style={{ marginBottom: '14px' }}>
-        <ConvictionBar proven={claim.proven} faded={claim.faded} hasPositions={hasPositions} />
+        <ConvictionGauge proven={claim.proven} faded={claim.faded} hasPositions={hasPositions} live={isClaimLive(claim.status)} />
       </div>
 
       {/* Economic facts */}

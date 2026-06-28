@@ -58,7 +58,7 @@ const mapBackendClaim = (c: any): Claim => {
   const callers = num(m.total_calls ?? m.participant_count ?? m.callers ?? c.callers) ?? 0;
   const capital = num(
     c.capital_staked ?? c.capital_stake ?? c.capital ?? c.anchor_capital ?? c.capital_amount
-    ?? m.total_capital ?? m.capital_staked,
+    ?? m.total_capital ?? m.capital_staked ?? m.total_staked,
   ) ?? 0;
 
   // Anchorer attribution can arrive as a flat field or nested user object, under
