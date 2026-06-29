@@ -5,10 +5,32 @@
 
 import { DropimusAPI } from './dropimusAPI';
 import { getAppKit } from './walletAndGoogle';
+import { getAddress, type Address } from 'viem';
+import { createSiweMessage } from 'viem/siwe';
 
 type WalletLinkProgress = 'opening' | 'nonce' | 'signing' | 'verifying' | 'linked';
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const DEFAULT_CHAIN_ID_BY_CHAIN: Record<string, number> = {
+  'base-sepolia': 84532,
+  base: 8453,
+};
+
+function parseIssuedAt(value: string): Date {
+  const normalized = value.replace(/\+00:00Z$/, 'Z');
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error('Wallet verification timestamp was invalid.');
+  }
+  return parsed;
+}
+
+async function resolveChainId(chain: string): Promise<number> {
+  const cfg = await DropimusAPI.getContractConfig();
+  const configured = Number(cfg?.chain?.chain_id ?? cfg?.chain?.id);
+  if (Number.isInteger(configured) && configured > 0) return configured;
+  return DEFAULT_CHAIN_ID_BY_CHAIN[chain] || 84532;
+}
 
 async function getProvider(): Promise<any> {
   const kit = await getAppKit();
@@ -88,7 +110,7 @@ export async function connectAndLinkWallet(
     console.warn('AppKit.open failed:', err);
   }
 
-  const address = await waitForWalletAddress(kit);
+  const address = getAddress(await waitForWalletAddress(kit));
   onProgress?.('Preparing wallet verification...', 'nonce');
   const nonceRes = await DropimusAPI.getWalletLinkNonce('base-sepolia');
   const nonce = nonceRes.data?.nonce;
@@ -96,11 +118,19 @@ export async function connectAndLinkWallet(
   const chain = (nonceRes.data as any)?.chain || 'base-sepolia';
   if (!nonce || !issuedAt) throw new Error('Wallet verification nonce was not returned.');
 
-  const message = `Sign in to Dropimus\n\n` +
-    `Address: ${address}\n` +
-    `Chain: ${chain}\n` +
-    `Nonce: ${nonce}\n` +
-    `Issued At: ${issuedAt}`;
+  const chainId = await resolveChainId(chain);
+  const domain = window.location.host;
+  const uri = window.location.origin;
+  const message = createSiweMessage({
+    address: address as Address,
+    chainId,
+    domain,
+    issuedAt: parseIssuedAt(issuedAt),
+    nonce,
+    statement: 'Link this wallet to your Dropimus account.',
+    uri,
+    version: '1',
+  });
 
   onProgress?.('Sign the wallet message to link this account...', 'signing');
   let provider = await getProvider();
@@ -119,9 +149,11 @@ export async function connectAndLinkWallet(
   onProgress?.('Linking wallet to your account...', 'verifying');
   const linkRes = await DropimusAPI.verifyAndAddWallet({
     chain,
+    chain_id: chainId,
     address,
     nonce,
     message,
+    signature: signedMessage,
     signed_message: signedMessage,
   });
   if (!linkRes?.success || !linkRes.data) {

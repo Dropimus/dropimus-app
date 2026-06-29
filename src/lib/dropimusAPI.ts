@@ -186,9 +186,11 @@ export class DropimusAPI {
    */
   static async verifyAndAddWallet(payload: {
     chain: string;
+    chain_id?: number;
     address: string;
     nonce: string;
     message: string;
+    signature?: string;
     signed_message: string;
   }): Promise<WalletLinkResponse> {
     const res = await authFetch('/api/wallets/verify-and-add', {
