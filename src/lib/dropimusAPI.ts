@@ -16,6 +16,7 @@ export interface NonceResponse {
   data?: {
     nonce: string;
     issued_at: string;
+    chain?: string;
   };
   detail?: string;
 }
@@ -31,6 +32,21 @@ export interface AuthResponse {
     };
   };
   detail?: string;
+}
+
+export interface WalletLinkResponse {
+  success: boolean;
+  data?: {
+    wallet_id: number;
+    address: string;
+    chain: string;
+    name?: string;
+    is_primary?: boolean;
+    verified?: boolean;
+    already_exists?: boolean;
+  };
+  detail?: string;
+  message?: string;
 }
 
 export interface AnchorProof {
@@ -108,6 +124,30 @@ export class DropimusAPI {
   }
 
   /**
+   * GET /api/wallets/nonce — authenticated wallet-linking nonce for the
+   * current user. This is intentionally separate from the wallet login nonce.
+   */
+  static async getWalletLinkNonce(chain: string): Promise<NonceResponse> {
+    const res = await authFetch(`/api/wallets/nonce?chain=${encodeURIComponent(chain)}`, {}, {
+      signOutOnFailure: false,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to fetch wallet-link nonce: HTTP ${res.status} ${body}`);
+    }
+
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Wallet-link nonce request failed');
+    }
+
+    if (data.data && !data.data.chain) {
+      data.data.chain = chain;
+    }
+    return data;
+  }
+
+  /**
    * 2. POST /api/auth/wallet-auth
    */
   static async authenticateWallet(payload: {
@@ -135,6 +175,36 @@ export class DropimusAPI {
     const data = await res.json();
     if (!data || data.success === false) {
       throw new Error(data?.detail || data?.message || 'Wallet authentication failed');
+    }
+
+    return data;
+  }
+
+  /**
+   * POST /api/wallets/verify-and-add — attach a signed wallet to the current
+   * authenticated user. This must not mint/replace auth tokens.
+   */
+  static async verifyAndAddWallet(payload: {
+    chain: string;
+    address: string;
+    nonce: string;
+    message: string;
+    signed_message: string;
+  }): Promise<WalletLinkResponse> {
+    const res = await authFetch('/api/wallets/verify-and-add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, { signOutOnFailure: false });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Wallet linking failed: HTTP ${res.status} ${body}`);
+    }
+
+    const data = await res.json();
+    if (!data || data.success === false) {
+      throw new Error(data?.detail || data?.message || 'Wallet linking failed');
     }
 
     return data;

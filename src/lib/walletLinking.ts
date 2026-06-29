@@ -90,7 +90,7 @@ export async function connectAndLinkWallet(
 
   const address = await waitForWalletAddress(kit);
   onProgress?.('Preparing wallet verification...', 'nonce');
-  const nonceRes = await DropimusAPI.getNonce('base-sepolia', address);
+  const nonceRes = await DropimusAPI.getWalletLinkNonce('base-sepolia');
   const nonce = nonceRes.data?.nonce;
   const issuedAt = nonceRes.data?.issued_at;
   const chain = (nonceRes.data as any)?.chain || 'base-sepolia';
@@ -117,21 +117,17 @@ export async function connectAndLinkWallet(
   if (!signedMessage) throw new Error('Wallet signature was not returned.');
 
   onProgress?.('Linking wallet to your account...', 'verifying');
-  const authRes = await DropimusAPI.authenticateWallet({
+  const linkRes = await DropimusAPI.verifyAndAddWallet({
     chain,
     address,
     nonce,
     message,
     signed_message: signedMessage,
   });
-  if (!authRes?.success || !authRes.data) {
-    throw new Error(authRes?.detail || 'Wallet verification was rejected.');
+  if (!linkRes?.success || !linkRes.data) {
+    throw new Error(linkRes?.detail || linkRes?.message || 'Wallet verification was rejected.');
   }
 
-  localStorage.setItem('dropimus_jwt_access_token', authRes.data.access_token);
-  if (authRes.data.refresh_token) {
-    localStorage.setItem('dropimus_jwt_refresh_token', authRes.data.refresh_token);
-  }
   try {
     localStorage.setItem('dropimus_protocol_wallet', JSON.stringify({
       connected: true,
