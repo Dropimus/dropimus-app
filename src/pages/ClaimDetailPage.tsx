@@ -19,6 +19,7 @@ import { PROOF_TYPES } from '../data';
 import { submitCallForClaim, DropimusAPI, AnchorProof } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
 import CountdownTimer from '../components/shared/CountdownTimer';
+import { connectAndLinkWallet } from '../lib/walletLinking';
 
 interface ClaimDetailPageProps {
   claim: Claim;
@@ -29,9 +30,10 @@ interface ClaimDetailPageProps {
   walletBalanceHonor: number;
   walletBalanceUSDC?: number;
   initialExpand?: boolean;
+  onWalletLinked?: (address?: string) => void;
 }
 
-export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 0, initialExpand }: ClaimDetailPageProps) {
+export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConnected, walletAddress = '', walletBalanceHonor, walletBalanceUSDC = 0, initialExpand, onWalletLinked }: ClaimDetailPageProps) {
   const [makeCallExpanded, setMakeCallExpanded] = useState(initialExpand || false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 992 : false);
 
@@ -177,6 +179,24 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
   const [signingStage, setSigningStage] = useState<'idle' | 'approve' | 'deposit' | 'sign' | 'complete' | 'error'>('idle');
   const [signingMessage, setSigningMessage] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
+  const [walletLinking, setWalletLinking] = useState(false);
+  const [walletLinkMessage, setWalletLinkMessage] = useState('');
+  const [walletLinkError, setWalletLinkError] = useState('');
+
+  const handleLinkWallet = async () => {
+    setWalletLinking(true);
+    setWalletLinkError('');
+    setWalletLinkMessage('');
+    try {
+      const linked = await connectAndLinkWallet((message) => setWalletLinkMessage(message));
+      await onWalletLinked?.(linked.address);
+      await onUpdate();
+    } catch (err: any) {
+      setWalletLinkError(err?.message || 'Wallet linking failed. Please try again.');
+    } finally {
+      setWalletLinking(false);
+    }
+  };
  
   const handleTriggerTransactionSigning = async () => {
     setSigningStage('approve');
@@ -907,31 +927,26 @@ export function ClaimDetailPage({ claim: claimProp, onBack, onUpdate, walletConn
                 Wallet Connection Required
               </h4>
               <p style={{ color: C.sub, fontSize: '11px', marginBottom: '16px', lineHeight: '1.4', maxWidth: '300px', marginLeft: 'auto', marginRight: 'auto' }}>
-                You must connect an active Web3 wallet in order to sign consensus evaluations or stake predictions on-chain.
+                Link a Web3 wallet to this account to sign consensus evaluations and stake positions on-chain.
               </p>
               <button
-                onClick={async () => {
-                  const { getAppKit } = await import('../lib/walletAndGoogle');
-                  const kit = await getAppKit();
-                  if (kit) {
-                    try {
-                      kit.open();
-                    } catch (e) {
-                      console.warn("AppKit.open failed: ", e);
-                    }
-                  } else {
-                    console.warn("Wallet connection unavailable.");
-                  }
-                }}
+                onClick={handleLinkWallet}
+                disabled={walletLinking}
                 className="px-6 py-2 rounded-xl text-xs font-bold text-black"
                 style={{
                   background: '#FFFFFF',
-                  cursor: 'pointer',
+                  cursor: walletLinking ? 'not-allowed' : 'pointer',
                   border: 'none',
+                  opacity: walletLinking ? 0.65 : 1,
                 }}
               >
-                Connect Wallet
+                {walletLinking ? 'Linking Wallet...' : 'Connect Wallet'}
               </button>
+              {(walletLinkMessage || walletLinkError) && (
+                <p style={{ color: walletLinkError ? C.fadedBright : C.blueLight, fontSize: '11px', marginTop: '12px', lineHeight: 1.4 }}>
+                  {walletLinkError || walletLinkMessage}
+                </p>
+              )}
             </div>
           ) : !makeCallExpanded ? (
             <Btn

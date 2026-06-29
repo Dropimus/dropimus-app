@@ -237,6 +237,15 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
         if (authRes.data.refresh_token) {
           localStorage.setItem('dropimus_jwt_refresh_token', authRes.data.refresh_token);
         }
+        try {
+          localStorage.setItem('dropimus_protocol_wallet', JSON.stringify({
+            connected: true,
+            address: addr,
+            balanceUSDC: 0,
+            balanceHonor: 0,
+            tier: 'Novice',
+          }));
+        } catch { /* ignore local cache failures */ }
 
 showToast("Wallet verified — welcome to Dropimus!", "success");
         setSignatureProgress('success');

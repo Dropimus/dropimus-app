@@ -21,6 +21,22 @@ import { CourtPageSkeleton, HonorPageSkeleton, LeaderboardSkeleton, ProfileSkele
 import { API_BASE } from './lib/apiBase';
 import { authFetch, onSessionExpired } from './lib/authClient';
 
+const getUserWalletAddress = (user: any): string => {
+  if (!user) return '';
+  if (typeof user.address === 'string' && user.address) return user.address;
+  const wallets = Array.isArray(user.wallets) ? user.wallets : [];
+  const primaryWallet = wallets.find((w: any) => w?.isPrimary || w?.is_primary || w?.primary) || wallets[0];
+  return primaryWallet?.address || primaryWallet?.wallet_address || '';
+};
+
+const getCachedWallet = (): Wallet | null => {
+  try {
+    const cached = JSON.parse(localStorage.getItem('dropimus_protocol_wallet') || 'null');
+    if (cached?.address) return { connected: true, balanceUSDC: 0, balanceHonor: 0, tier: 'Novice', ...cached };
+  } catch { /* ignore */ }
+  return null;
+};
+
 const num = (v: any): number | null => {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : parseFloat(String(v));
@@ -225,6 +241,8 @@ export default function App() {
   const handleForceCleanSession = () => {
     localStorage.removeItem('dropimus_jwt_access_token');
     localStorage.removeItem('dropimus_jwt_refresh_token');
+    localStorage.removeItem('dropimus_protocol_wallet');
+    localStorage.removeItem('dropimus_protocol_google_user');
     setGoogleUser({ loggedIn: false, name: '', email: '', avatar: '' });
     setWallet({ connected: false, address: '', balanceUSDC: 0, balanceHonor: 0, tier: '' });
     setClaimsList([]);
@@ -235,6 +253,16 @@ export default function App() {
   const refreshState = async () => {
     // Fetch live public claims from the backend
     setClaimsList([]);
+
+    const cachedWallet = getCachedWallet();
+    if (cachedWallet) {
+      setWallet(prev => ({
+        ...prev,
+        ...cachedWallet,
+        connected: true,
+        address: cachedWallet.address,
+      }));
+    }
 
     try {
       const liveRes = await DropimusAPI.getMarketClaims();
@@ -265,12 +293,13 @@ export default function App() {
 
         if (meRes && meRes.success && meRes.data) {
           const uData = meRes.data;
+          const profileAddress = getUserWalletAddress(uData) || cachedWallet?.address || '';
           // Authoritative identity from /users/me — do NOT fall back to prev
           // name/email, or a previously-cached account's identity would leak
           // into the current session (profile showing the wrong user).
           const nextGoogle: GoogleUser = {
             loggedIn: true,
-            name: uData.full_name || uData.username || (uData.address ? shortAddr(uData.address) : 'Dropimus User'),
+            name: uData.full_name || uData.username || (profileAddress ? shortAddr(profileAddress) : 'Dropimus User'),
             email: uData.email || '',
             avatar: uData.avatar || '',
           };
@@ -278,10 +307,11 @@ export default function App() {
           try { localStorage.setItem('dropimus_protocol_google_user', JSON.stringify(nextGoogle)); } catch { /* ignore */ }
 
           setWallet(prev => {
+            const hasConnectedWalletSession = prev.connected || !!cachedWallet?.connected;
             const updated = {
               ...prev,
-              connected: true,
-              address: uData.address || prev.address,
+              connected: hasConnectedWalletSession,
+              address: prev.address || profileAddress || '',
             };
             const ud = usageRes?.data;
             if (usageRes && usageRes.success && ud) {
@@ -342,10 +372,10 @@ export default function App() {
               };
 
               if (exchangeData.user.wallets && exchangeData.user.wallets.length > 0) {
-                const primaryWallet = exchangeData.user.wallets.find((w: any) => w.isPrimary) || exchangeData.user.wallets[0];
+                const primaryWallet = exchangeData.user.wallets.find((w: any) => w.isPrimary || w.is_primary || w.primary) || exchangeData.user.wallets[0];
                 authWallet = {
                   connected: true,
-                  address: primaryWallet.address,
+                  address: primaryWallet.address || primaryWallet.wallet_address || '',
                   balanceUSDC: 0,
                   balanceHonor: 0,
                   tier: 'Novice'
@@ -381,10 +411,8 @@ export default function App() {
           const cachedG = JSON.parse(localStorage.getItem('dropimus_protocol_google_user') || 'null');
           if (cachedG?.loggedIn) setGoogleUser(cachedG);
         } catch { /* ignore */ }
-        try {
-          const cachedW = JSON.parse(localStorage.getItem('dropimus_protocol_wallet') || 'null');
-          if (cachedW?.connected) setWallet(cachedW);
-        } catch { /* ignore */ }
+        const cachedW = getCachedWallet();
+        if (cachedW) setWallet(cachedW);
 
         setAuthenticated(true);
         setIsAuthVerifying(false); // show the app now
@@ -397,14 +425,15 @@ export default function App() {
             if (meRes.ok) {
               const u = (await meRes.json().catch(() => null))?.data;
               if (u) {
+                const profileAddress = getUserWalletAddress(u);
                 setGoogleUser(prev => ({
                   ...prev,
                   loggedIn: true,
-                  name: u.full_name || u.fullName || u.username || prev.name || 'Dropimus User',
+                  name: u.full_name || u.fullName || u.username || (profileAddress ? shortAddr(profileAddress) : '') || prev.name || 'Dropimus User',
                   email: u.email || prev.email || '',
                   avatar: u.avatar || prev.avatar || '',
                 }));
-                if (u.address) setWallet(prev => ({ ...prev, connected: true, address: u.address }));
+                if (profileAddress) setWallet(prev => ({ ...prev, address: prev.address || profileAddress, connected: prev.connected }));
               } else {
                 handleForceCleanSession();
                 setIsLoading(false);
@@ -499,10 +528,28 @@ export default function App() {
     await refreshState();
   };
 
+  const handleWalletLinked = async (address?: string) => {
+    if (address) {
+      setWallet(prev => {
+        const updated = {
+          ...prev,
+          connected: true,
+          address,
+          tier: prev.tier || 'Novice',
+        };
+        try { localStorage.setItem('dropimus_protocol_wallet', JSON.stringify(updated)); } catch { /* ignore */ }
+        return updated;
+      });
+    }
+    await refreshState();
+  };
+
   const handleSignOut = () => {
     fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' }).catch(() => {});
     localStorage.removeItem('dropimus_jwt_access_token');
     localStorage.removeItem('dropimus_jwt_refresh_token');
+    localStorage.removeItem('dropimus_protocol_wallet');
+    localStorage.removeItem('dropimus_protocol_google_user');
     setGoogleUser({ loggedIn: false, name: '', email: '', avatar: '' });
     setWallet({ connected: false, address: '', balanceUSDC: 0, balanceHonor: 0, tier: '' });
     setClaimsList([]);
@@ -557,6 +604,8 @@ export default function App() {
           setIsAuthVerifying(true);
           setAuthenticated(true);
           setIsLoading(true);
+          const cachedWallet = getCachedWallet();
+          if (cachedWallet) setWallet(cachedWallet);
           await refreshState();
           setIsLoading(false);
           setIsAuthVerifying(false);
@@ -608,6 +657,7 @@ export default function App() {
             walletBalanceHonor={wallet.balanceHonor}
             walletBalanceUSDC={wallet.balanceUSDC}
             initialExpand={initialExpandCall}
+            onWalletLinked={handleWalletLinked}
           />
         ) : (
           /* Render designated nav view with smooth cross-fade page transition */
@@ -647,6 +697,7 @@ export default function App() {
                   onAddClaim={handleAddClaim}
                   walletBalanceUSDC={wallet.balanceUSDC}
                   wallet={wallet}
+                  onWalletLinked={handleWalletLinked}
                 />
               )}
 

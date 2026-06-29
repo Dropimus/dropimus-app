@@ -117,12 +117,15 @@ export class DropimusAPI {
     message: string;
     signed_message: string;
   }): Promise<AuthResponse> {
-    const res = await fetch(`${this.getBaseUrl()}/api/auth/wallet-auth`, {
+    // Use authFetch so an existing Google session's bearer token is sent with
+    // wallet-auth. The backend can then link the signed wallet to that account
+    // instead of treating the wallet as a separate login.
+    const res = await authFetch('/api/auth/wallet-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(payload)
-    });
+    }, { signOutOnFailure: false });
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');

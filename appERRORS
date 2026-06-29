@@ -1,8 +1,18 @@
-claims are showing up on the logs but its not showing up on the frontend and there is no single skelton loader that is showing, fix that:  OK
-dropimus-web  | INFO:     127.0.0.1:44516 - "GET /health HTTP/1.1" 200 OK
-dropimus-web  | INFO:     127.0.0.1:54440 - "GET /health HTTP/1.1" 200 OK
-dropimus-web  | INFO:     172.18.0.6:39566 - "GET /auth/status HTTP/1.1" 200 OK
-dropimus-web  | INFO:     172.18.0.6:39582 - "GET /auth/status HTTP/1.1" 200 OK
-dropimus-web  | INFO:     172.18.0.6:39590 - "GET /claims/?limit=10 HTTP/1.1" 200 OK
-dropimus-web  | INFO:     172.18.0.6:57972 - "GET /claims/?limit=10 HTTP/1.1" 200 OK
-dropimus-web  | INFO:     172.18.0.6:57986 - "GET /claims/?limit=10 HTTP/1.1" 200 OK
+IONS /wallets/labeling-progress HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33542 - "GET /wallets/labeling-progress HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33548 - "OPTIONS /wallets HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33526 - "GET /me/usage HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33562 - "GET /wallets HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33578 - "OPTIONS /wallets/9/transactions?per_page=50 HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:33592 - "GET /wallets/9/transactions?per_page=50 HTTP/1.1" 200 OK
+dropimus-web  | INFO:     127.0.0.1:37260 - "GET /health HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:53822 - "OPTIONS /wallets/9/auto-score-honor HTTP/1.1" 200 OK
+dropimus-web  | INFO:utils.wallet_labeling:[WALLET_LABEL] Auto-score for wallet #9 (user #12) — scanned=92 auto_labeled=0 awarded=0 total_honor=0
+dropimus-web  | [ACTIVITY LOGGED] wallet_auto_scored for user 12
+dropimus-web  | INFO:     172.18.0.6:53838 - "POST /wallets/9/auto-score-honor HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:53854 - "GET /wallets/9/transactions?per_page=50 HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:53856 - "GET /users/me HTTP/1.1" 200 OK
+dropimus-web  | INFO:     127.0.0.1:43886 - "GET /health HTTP/1.1" 200 OK
+dropimus-web  | INFO:     172.18.0.6:43708 - "OPTIONS /wallets/9/transactions/0x8576218ff1d5dd66599af920a6cce92fab58dd0419db03ad52e49196d8e0333d HTTP/1.1" 200 OK
+dropimus-web  | [ACTIVITY LOGGED] tx_labeled for user 12
+dropimus-web  | INFO:     172.18.0.6:43714 - "PATCH /wallets/9/transac

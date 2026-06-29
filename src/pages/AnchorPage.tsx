@@ -13,9 +13,10 @@ import { IconParachute } from '../components/icons';
 import { CLAIM_TYPES, METRICS, RELATIVE_WINDOWS, PROOF_TYPES } from '../data';
 import Btn from '../components/shared/Btn';
 import { Select } from '../components/shared/Select';
-import { Claim, getAppKit } from '../lib/walletAndGoogle';
+import { Claim } from '../lib/walletAndGoogle';
 import { DropimusAPI, signUSDCApprovalAndDeposit } from '../lib/dropimusAPI';
 import { authFetch } from '../lib/authClient';
+import { connectAndLinkWallet } from '../lib/walletLinking';
 
 const CATEGORIES = [
   { id: 'Airdrops', label: 'Airdrops', icon: IconParachute, blurb: 'Will an airdrop happen, and how big?' },
@@ -32,9 +33,10 @@ interface AnchorPageProps {
   onAddClaim: (claim: Claim) => void;
   walletBalanceUSDC: number;
   wallet?: any;
+  onWalletLinked?: (address?: string) => void;
 }
 
-export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
+export function AnchorPage({ onAddClaim, wallet, onWalletLinked }: AnchorPageProps) {
   const [step, setStep] = useState<number>(1); // 1 | 2 | 3
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
@@ -77,6 +79,23 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
   const [preflightData, setPreflightData] = useState<any>(null);
   const [preflightError, setPreflightError] = useState<string>('');
   const [successClaimHash, setSuccessClaimHash] = useState<string>('');
+  const [walletLinking, setWalletLinking] = useState(false);
+  const [walletLinkMessage, setWalletLinkMessage] = useState('');
+  const [walletLinkError, setWalletLinkError] = useState('');
+
+  const handleLinkWallet = async () => {
+    setWalletLinking(true);
+    setWalletLinkError('');
+    setWalletLinkMessage('');
+    try {
+      const linked = await connectAndLinkWallet((message) => setWalletLinkMessage(message));
+      await onWalletLinked?.(linked.address);
+    } catch (err: any) {
+      setWalletLinkError(err?.message || 'Wallet linking failed. Please try again.');
+    } finally {
+      setWalletLinking(false);
+    }
+  };
 
   // ─── Wallet gate ───────────────────────────────────────────────────────────
   if (!wallet || !wallet.connected) {
@@ -88,11 +107,16 @@ export function AnchorPage({ onAddClaim, wallet }: AnchorPageProps) {
           </div>
           <h2 style={{ fontFamily: FONTS.display, fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Connect a wallet to anchor</h2>
           <p style={{ color: C.sub, fontSize: '13px', marginBottom: '24px', lineHeight: '1.5' }}>
-            Anchoring a claim locks a small stake on Base. Google sign-in is read-only — link a wallet to put a claim forward.
+            Anchoring a claim locks a small stake on Base. Link a wallet to this account to put a claim forward.
           </p>
-          <Btn variant="primary" fullWidth onClick={async () => { const kit = await getAppKit(); try { kit?.open(); } catch (e) { console.warn('AppKit.open failed:', e); } }}>
-            Connect Wallet
+          <Btn variant="primary" fullWidth disabled={walletLinking} onClick={handleLinkWallet}>
+            {walletLinking ? 'Linking wallet...' : 'Connect Wallet'}
           </Btn>
+          {(walletLinkMessage || walletLinkError) && (
+            <p style={{ color: walletLinkError ? C.fadedBright : C.blueLight, fontSize: '11px', marginTop: '12px', lineHeight: 1.4 }}>
+              {walletLinkError || walletLinkMessage}
+            </p>
+          )}
         </div>
       </div>
     );
